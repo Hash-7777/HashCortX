@@ -214,11 +214,13 @@
     if (byCommands.length) rows.push({ from: 'commands', label: 'By commands', tone: 'attention', text: `${many(byCommands.length, 'file', 'files')} changed by commands: ${byCommands.slice(0, 5).map((f) => `\`${f}\``).join(', ')}${byCommands.length > 5 ? `, and ${byCommands.length - 5} more` : ''}`, soft: 'no Undo for these' });   // js/code/command-changes.js
     // A small model has no git tools: the person commits what it changed from here, with a title drafted in the repository's style (js/code/git.js draftTitle).
     if (p.commit && typeof p.commit.title === 'string') rows.push({ from: 'commit', label: 'Commit', tone: '', text: 'These changes can be committed.', controls: 'commit', title: p.commit.title });
+    // A run that ended stuck, at its limit or with asks open: once more with a hint, or with a stronger model the person has (js/code/retry.js).
+    if (p.retry && p.retry.why) rows.push({ from: 'retry', label: 'Try again', tone: '', text: p.retry.why, controls: 'retry', retry: p.retry });
     return rows;
   }
 
   /** The rows kept with a saved answer: no controls, and no count of decisions, which would go stale. */
-  const saved = (rows) => (rows || []).filter((r) => r.from !== 'commit').map((r) => Object.assign({}, r, { controls: '' }, r.from === 'changes' ? { soft: '' } : {}));   // an offer to commit is for now only
+  const saved = (rows) => (rows || []).filter((r) => r.from !== 'commit' && r.from !== 'retry').map((r) => Object.assign({}, r, { controls: '' }, r.from === 'changes' ? { soft: '' } : {}));   // an offer to commit is for now only
 
   /** Each row's mark: a 16-unit grid, drawn on currentColor. */
   const RECEIPT_ICONS = {
@@ -233,6 +235,7 @@
     claims: '<circle cx="8" cy="8" r="5.6"/><path d="M6.4 6.4a1.7 1.7 0 1 1 2.3 1.6c-.5.2-.7.6-.7 1.1v.3M8 11.2v.2"/>',
     plan: '<path d="M3.5 14V2.5"/><path d="M3.5 3h8.2l-1.7 2.6 1.7 2.6H3.5"/>',
     commit: '<circle cx="8" cy="8" r="2.6"/><path d="M1.8 8h3.6M10.6 8h3.6"/>',
+    retry: '<path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.8"/><path d="M11.8 1.9v2.6H9.2"/>',
     commands: '<path d="m2.6 4.6 3.4 3.4-3.4 3.4M7.8 11.4h5.6"/>',
     subagents: '<path d="M8 4.6 4.3 11M8 4.6l3.7 6.4M5.6 12h4.8"/><circle cx="8" cy="3.4" r="1.6"/><circle cx="3.6" cy="12.1" r="1.6"/><circle cx="12.4" cy="12.1" r="1.6"/>',
   };
@@ -270,7 +273,8 @@
       row.dataset.from = r.from;
       row.innerHTML = `<span class="cdr-receipt-mark" aria-hidden="true"><svg viewBox="0 0 16 16">${RECEIPT_ICONS[r.from] || ''}</svg></span><span class="cdr-receipt-label"></span><span class="cdr-receipt-text"></span>` +
         (live && r.from === 'changes' ? '<span class="cdr-receipt-ctl"><span class="cdr-step-actions" role="group" aria-label="Every change in this reply"><button type="button" class="cdr-step-btn keep">Keep all</button><button type="button" class="cdr-step-btn undo">Undo all</button></span></span>' : '') +
-        (live && r.from === 'commit' ? '<span class="cdr-receipt-ctl"><input type="text" class="cdr-commit-title" aria-label="Commit title" maxlength="200"><button type="button" class="cdr-step-btn commit">Commit these changes</button></span>' : '');
+        (live && r.from === 'commit' ? '<span class="cdr-receipt-ctl"><input type="text" class="cdr-commit-title" aria-label="Commit title" maxlength="200"><button type="button" class="cdr-step-btn commit">Commit these changes</button></span>' : '') +
+        (live && r.from === 'retry' ? `<span class="cdr-receipt-ctl"><span class="cdr-step-actions" role="group" aria-label="Try again"><button type="button" class="cdr-step-btn hint">Once more with a hint</button>${r.retry && r.retry.stronger ? '<button type="button" class="cdr-step-btn stronger"></button>' : ''}</span></span>` : '');
       row.querySelector('.cdr-receipt-label').textContent = r.label;
       fillRow(row, r);
       box.appendChild(row);
@@ -320,12 +324,24 @@
   }
 
   /** The receipt for a run that just answered: the parts the loop hands over, with the asks and the change rows of this reply. Returns the rows to keep with the answer, or null. */
+  /** What a run that ended stuck, at its limit or with asks open is offered (js/code/retry.js), or null. */
+  function retryOf(parts, marks, code) {
+    const R = window.HCCodeRetry, L = window.HCRunLedger, p = parts || {};
+    if (!R || !code) return null;
+    const model = String(code.runModel || ''), root = window.HC && window.HC.guard && window.HC.guard.projectRoot ? window.HC.guard.projectRoot() : '';
+    const options = [...document.querySelectorAll('#cdrModelPicker option')].map((o) => ({ value: o.value, label: o.textContent }));
+    const messages = typeof code.runMessages === 'function' ? code.runMessages() : [];
+    return R.offer({ stopped: p.stopped, marks, left: p.left, request: code.request, current: model, options,
+      localOnly: !/^cloud:/.test(model) || !!(window.HCCodeOutward && window.HCCodeOutward.isPrivate(root)),
+      note: L && L.from && L.note ? L.note(L.from(messages), { most: (L.MOST && L.MOST.mid) || 1600 }) : '' });
+  }
+
   function receiptIn(contentEl, parts) {
     if (!contentEl) return null;
     const st = contentEl.hcPhases, code = window.HC && window.HC.code;
     const most = (window.HCCodeAsks && window.HCCodeAsks.MIN_ASKS) || 3;
     const marks = st && code && Array.isArray(code.asks) && code.asks.length >= most ? askMarks(code.asks, { first: code.firstRequest, said: code.said, steps: st.all, since: st.since || [] }) : [];
-    const rows = receipt(Object.assign({}, parts, { marks, changes: changesIn(contentEl) }));
+    const rows = receipt(Object.assign({}, parts, { marks, changes: changesIn(contentEl), retry: retryOf(parts, marks, code) }));
     const box = drawReceipt(contentEl, rows, true);
     if (!box) return null;
     const row = box.querySelector('[data-from="changes"]');
@@ -337,6 +353,15 @@
       // Only a change row's own class is read: the receipt's own redrawing never wakes it again.
       new MutationObserver((seen) => { if (seen.some((m) => m.target.classList && m.target.classList.contains('cdr-step--change'))) fillRow(row, receipt(Object.assign({}, parts, { changes: changesIn(contentEl) })).find((r) => r.from === 'changes') || rows.find((r) => r.from === 'changes')); })
         .observe(contentEl, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    }
+    const again = box.querySelector('[data-from="retry"]'), retry = (rows.find((r) => r.from === 'retry') || {}).retry;
+    if (again && retry) {
+      const up = again.querySelector('.cdr-step-btn.stronger');
+      if (up) { up.textContent = `With ${retry.stronger.label}`; up.title = `A new conversation on ${retry.stronger.label}, from your request and what this run did. This one is kept in Sessions.`; }
+      again.querySelector('.cdr-step-btn.hint').title = 'The same model, here, told what is still open';
+      for (const [kind, btn] of [['hint', again.querySelector('.cdr-step-btn.hint')], ['stronger', up]]) {
+        if (btn) btn.addEventListener('click', () => { if (window.HCCodeRetry && window.HCCodeRetry.act(kind, retry, document)) again.querySelector('.cdr-receipt-ctl').hidden = true; });   // taken once, through the person's own controls
+      }
     }
     const offer = box.querySelector('[data-from="commit"]');
     if (offer) {

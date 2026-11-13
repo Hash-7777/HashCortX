@@ -118,6 +118,7 @@
     '/js/code/command-changes.js',
     '/js/code/worked.js',
     '/js/code/delegate.js',
+    '/js/code/retry.js',
     '/js/code/outward.js',
     '/js/code/permission-bar.js',
     '/js/code/attach.js',

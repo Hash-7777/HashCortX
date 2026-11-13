@@ -123,6 +123,19 @@ ok('...and nothing in it moves', !/\.cdr-brief[^{]*\{[^}]*(?:animation|transitio
   ok('a card puts its title and steps in as text, never as markup: a sub-agent\'s words come from a model', /said\.textContent = said\.title = String\(i\.title \|\| ''\)/.test(view) && /li\.children\[1\]\.textContent = /.test(view) && /wordsInto\(out\.lastChild, r\.found/.test(view));
   ok('...and only a card still working carries the turning cube', /state\.innerHTML = `\$\{r\.failed \? '' : svgOf\(AGENT_ICONS\.done\)\}<span><\/span>`/.test(view));
 }
+{
+  const retry = { why: '2 asks of the request are still open.', hint: 'Finish what is still open from my request:\n1. a', stronger: { value: 'cloud:openai:gpt-5', label: 'GPT-5' }, handOver: 'x' };
+  const rows = V.receipt({ retry });
+  const row = rows.find((r) => r.from === 'retry');
+  ok('try again: a row of its own, saying why, offering the two ways on', !!row && row.label === 'Try again' && row.text === retry.why && row.controls === 'retry' && row.retry === retry, JSON.stringify(row));
+  ok('...last, after everything the record shows', rows[rows.length - 1] === row);
+  ok('...nothing offered, no row', !V.receipt({}).some((r) => r.from === 'retry') && !V.receipt({ retry: null }).some((r) => r.from === 'retry'));
+  ok('...and an offer is for now only: a saved answer keeps no row of it', !V.saved(rows).some((r) => r.from === 'retry'));
+  const view = src('js', 'run-view.js');
+  ok('its buttons: once more with a hint, and the stronger model by name, only when there is one', /<button type="button" class="cdr-step-btn hint">Once more with a hint<\/button>\$\{r\.retry && r\.retry\.stronger \? '<button type="button" class="cdr-step-btn stronger"><\/button>' : ''\}/.test(view) && /up\.textContent = `With \$\{retry\.stronger\.label\}`/.test(view));
+  ok('...each taken through HCCodeRetry.act on the page, once, and the offer then put away', /window\.HCCodeRetry\.act\(kind, retry, document\)\) again\.querySelector\('\.cdr-receipt-ctl'\)\.hidden = true;/.test(view));
+  ok('...offered from the run\'s own model, the menu\'s models, the run\'s record, and only this computer\'s models for a run on this computer or a project marked private', /current: model, options,/.test(view) && /localOnly: !\/\^cloud:\/\.test\(model\) \|\| !!\(window\.HCCodeOutward && window\.HCCodeOutward\.isPrivate\(root\)\)/.test(view) && /L\.note\(L\.from\(messages\)/.test(view));
+}
 ok('the receipt is drawn under the answer from what the loop hands over, kept with the answer, and drawn again when a saved conversation is opened', /const kept = ui\.receipt\?\.\(\{ commit: commitOffer\(\), commands: commandChanged\.slice\(\), subagents: subAgents\.slice\(\), proof: proof \? window\.HCCodeVerify\.proofParts\(proof\) : null/.test(src('js', 'agent-loop.js')) && /if \(proven && !kept\) ui\.answer/.test(src('js', 'agent-loop.js')) && /receipt: \(parts\) => window\.HCRunView\?\.receiptIn\(contentEl, parts\)/.test(src('modes', 'code', 'mode.js')) && /\.\.\.\(sharedState\.receipt \? \{ receipt: sharedState\.receipt \} : \{\}\)/.test(src('modes', 'code', 'mode.js')) && /m\.receipt && window\.HCRunView\?\.drawReceipt\(reply, m\.receipt\)/.test(src('modes', 'code', 'mode.js')));
 {
   const offer = V.receipt({ files: ['src/cart.js'], commit: { title: 'fix: keep the total in pence' } });

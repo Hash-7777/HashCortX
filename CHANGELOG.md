@@ -10,6 +10,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A HashCoder run that ends short offers another try.** When a run
+  stops at its limit or gets stuck, or finishes with parts of a request of
+  several asks still open, its receipt offers two ways on. Once more with a hint keeps
+  the same model and conversation and tells it exactly what is still open.
+  With a stronger model, offered when you have one, starts a new
+  conversation on it from your request and the app's record of what the
+  earlier run did, on your files as that run left them; the earlier
+  conversation is kept in Sessions. A run on a model on this computer, or
+  on a project you marked private, is offered only another model on this
+  computer. Nothing switches model unless you press the button.
+
 - **HashCoder can hand part of a big task to a sub-agent, if you switch it
   on.** It is new and not yet proven on real runs, so it is off until you
   turn it on in Settings → HashCoder. On a big request in a large project, a
