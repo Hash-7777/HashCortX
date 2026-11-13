@@ -38,7 +38,7 @@ console.log('The tool list:');
     const [k, v] = Object.entries(withSchema.parameters).find(([, x]) => x && typeof x === 'object' && x.type);
     ok('an argument given as a schema is kept as it is', JSON.stringify(list.find((t) => t.function.name === withSchema.name).function.parameters.properties[k]) === JSON.stringify(v));
   }
-  const optional = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run'];
+  const optional = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run', 'result'];
   ok('every argument is required but the ones optional by name', list.every((t) => {
     const def = HC.code.TOOL_DEFINITIONS.find((d) => d.name === t.function.name);
     return t.function.parameters.required.join() === Object.keys(def.parameters).filter((k) => !optional.includes(k)).join();
@@ -96,6 +96,15 @@ console.log('\nSeveral files read in one call:');
   ok('...described in its few words, at most six', ['small', 'mid'].every((s) => /six/.test(read(s).properties.paths?.description || '')) && /paths/.test(HC.code.SHORT_TOOL_WORDS.read_file));
   ok('a larger model is not: it reads several files with several calls in one turn', !('paths' in read('full').properties) && read('full').required.includes('path'));
   ok('the small instructions say so', /read_file with paths/.test(HC.code.SMALL_MODEL_PROMPT));
+}
+
+console.log('\nA cut result read back by its id:');
+{
+  const list = HC.code.toolList();
+  const read = (size) => byNameOf(HC.code.toolsFor(size, list, ''), 'read_file').function.parameters;
+  ok('every model is offered result on read_file, with start_line and end_line', ['small', 'mid', 'full'].every((s) => read(s).properties.result?.type === 'string' && 'start_line' in read(s).properties && !read(s).required.includes('result')), JSON.stringify(read('full').required));
+  ok('...and a larger model still gives path, which is then not read', read('full').required.includes('path') && /path is not read/.test(read('full').properties.result.description));
+  ok('...described as the id a cut result names', ['small', 'mid', 'full'].every((s) => /id a cut result names/.test(read(s).properties.result?.description || '')));
 }
 
 console.log('\nA mid-sized local model:');

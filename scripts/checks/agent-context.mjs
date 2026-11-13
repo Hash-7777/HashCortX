@@ -94,6 +94,31 @@ console.log('\nTruncation is legible:');
   check('a cut result is cut the same way every time', budgetToolResults([tool('a'.repeat(200000))])[0].content === trimmed);
 }
 
+console.log('\nA cut result can be read back by its id:');
+{
+  const C = sandbox.window.HCAgentContext;
+  const lines = Array.from({ length: 6000 }, (_, i) => `line ${i + 1} ${'z'.repeat(20)}`).join('\n');
+  const cut = budgetToolResults([tool(lines, 'call_7')], { maxResult: 20000 })[0].content;
+  const m = /lines (\d+) to (\d+) of (\d+)\. Read them with read_file, result "call_7", start_line \1, end_line \2/.exec(cut);
+  check('the cut note names the result and the lines it left out', !!m && Number(m[3]) === 6000, cut.slice(14900, 15200));
+  const shownHead = cut.split('\n\n…[')[0], shownTail = cut.split(']…\n\n')[1] || '';
+  check('...exactly those between the last whole line shown and the first after', !!m && shownHead.split('\n').length === Number(m[1]) && lines.split('\n').length - shownTail.split('\n').length + 1 === Number(m[2]), m && `${m[1]}-${m[2]} head ${shownHead.split('\n').length}`);
+  check('...still the same every time, and still saying how else to get them', budgetToolResults([tool(lines, 'call_7')], { maxResult: 20000 })[0].content === cut && /narrower query/.test(cut));
+  check('a result with no id is cut as it was, with no id to name', !/Read them with read_file/.test(budgetToolResults([{ role: 'tool', content: lines }], { maxResult: 20000 })[0].content));
+  const msgs = [sys('p'), user('go'), tool(lines, 'call_7')];
+  const back = typeof C.resultLines === 'function' ? C.resultLines(msgs, 'call_7', 2500, 2502) : { ok: false, text: '' };
+  check('read back: those lines of the whole result, numbered as a file read is', back.ok === true && /^\[Result call_7: lines 2500-2502 of 6000\./.test(back.text) && back.text.split('\n').slice(1).join('\n') === `2500| line 2500 ${'z'.repeat(20)}\n2501| line 2501 ${'z'.repeat(20)}\n2502| line 2502 ${'z'.repeat(20)}`, back.text.slice(0, 200));
+  const long = typeof C.resultLines === 'function' ? C.resultLines(msgs, 'call_7', 1) : { ok: false, text: '' };
+  check('...a window at a time, saying how to read on', long.ok && long.text.split('\n').length - 1 === C.RESULT_LINES && new RegExp(`call read_file with result "call_7" and start_line ${C.RESULT_LINES + 1}`).test(long.text), long.text.slice(0, 160));
+  const asked = typeof C.resultLines === 'function' ? C.resultLines(msgs, 'call_7', 1, 5000) : { ok: false, text: '' };
+  check('...however many lines are asked for', asked.ok && asked.text.split('\n').length - 1 === C.RESULT_LINES && /lines 1-200 of 6000/.test(asked.text), asked.text.slice(0, 80));
+  const none = typeof C.resultLines === 'function' ? C.resultLines(msgs, 'call_9', 1, 5) : { ok: true, text: '' };
+  check('an id no result has says so, and how to write the call', none.ok === false && /no result in this conversation has the id "call_9"/.test(none.text) && /Call it as \{"result":/.test(none.text), none.text);
+  const middle = Number(m && m[1]) + 10;
+  check('a line from the middle that was left out reads back as it is', !!m && !cut.includes(`line ${middle} `) && typeof C.resultLines === 'function' && C.resultLines(msgs, 'call_7', middle, middle).text.endsWith(`${middle}| line ${middle} ${'z'.repeat(20)}`));
+  check('what is sent is cut; the conversation it is cut from is not changed', compressHistory(msgs, { maxResult: 20000 })[2].content === cut && msgs[2].content === lines);
+}
+
 console.log('\nEach request is the last one with more on the end:');
 {
   // A run of 60 steps with results of uneven size. Between two steps of

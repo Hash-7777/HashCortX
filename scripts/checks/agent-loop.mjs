@@ -29,7 +29,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { console, performance, setTimeout, clearTimeout, DOMException };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['fences.js', 'code/host-tools.js', 'code/translate.js', 'code/asks.js', 'code/added.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
+for (const f of ['fences.js', 'agent-context.js', 'code/host-tools.js', 'code/translate.js', 'code/asks.js', 'code/added.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
   vm.runInContext(src('js', ...f.split('/')), sandbox, { filename: f });
 }
 const S = sandbox.HCAgentShape;
@@ -86,8 +86,9 @@ function project() {
  * One run. `script(messages, n)` gives the model's n-th turn (from 1); a turn
  * that is an Error is thrown. `finish` is the finishing list the mode builds.
  */
-async function runWith({ script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [], receipt = false, offerThen = false, offerPaths = false } = {}) {
+async function runWith({ script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [], receipt = false, offerThen = false, offerPaths = false, bigRead = null } = {}) {
   const P = project();
+  if (bigRead) P.files['/p/a.js'] = bigRead;
   sandbox.HC = { code: { TOOL_DEFINITIONS: P.tools.map((t) => ({ name: t.name, fn: t.fn })), request, asks, plan: null, readWholeQuietly: async () => '', linesQuietly: async () => '' }, undo: { lastFor: () => null }, guard: { noteBlocked: () => {} } };
   const scr = screen(receipt);
   const messages = [{ role: 'system', content: 'You are a coding agent.' }, { role: 'user', content: request }];
@@ -172,6 +173,15 @@ console.log('\nSeveral files read in one call (paths):');
   const plain = await runWith({ script });
   const kept = plain.messages.find((m) => m.tool_calls).tool_calls;
   ok('a model not offered it has its call left as it was, for the tool to answer', kept.length === 1 && json(JSON.parse(kept[0].function.arguments).paths) === '["/p/a.js","/p/b.js"]', json(kept));
+}
+
+console.log('\nA cut result read back by its id:');
+{
+  const big = Array.from({ length: 50 }, (_, i) => `row ${i + 1}`).join('\n');
+  const script = (m, n) => (n === 1 ? turnOf({ ...callOf('read_file', { path: '/p/a.js' }), id: 'r1' }) : n === 2 ? turnOf(callOf('read_file', { result: 'r1', start_line: 10, end_line: 11 })) : words('Read it back.'));
+  const r = await runWith({ script, bigRead: big });
+  const second = r.messages.filter((m) => m.role === 'tool')[1];
+  ok('a read by result id is answered from the run\'s own record, no file read for it', r.P.ran.length === 1 && /^\[Result r1: lines 10-11 of 50\./.test(second && second.content) && /10\| row 10\n11\| row 11$/.test(second.content), second && second.content);
 }
 
 console.log('\nThe loop runs with no page:');

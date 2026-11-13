@@ -114,7 +114,7 @@
     return Object.assign(out, { toolBudget, maxResult, rollAt: Math.floor(usable * 0.85 * chars) });
   }
 
-  function truncateResult(content, keep) {
+  function truncateResult(content, keep, id) {
     // Keep the head — for a file read or a directory listing that is the part
     // carrying structure. Keep a little of the tail too, because a command's
     // exit message and a compiler's final error both live at the end, and
@@ -124,12 +124,44 @@
     const dropped = content.length - keep;
     const head = content.slice(0, headLen);
     const tail = tailLen > 0 ? content.slice(-tailLen) : '';
+    // With the result's id, the lines left out by number, from the one the head stops in to the one the
+    // tail starts in, and how to read them back (resultLines): the loop keeps every result whole.
+    const lineAt = (i) => content.slice(0, i).split('\n').length;
+    const how = id != null && id !== ''
+      ? `: lines ${lineAt(headLen)} to ${lineAt(content.length - tailLen)} of ${content.split('\n').length}. Read them with read_file, result "${id}", start_line ${lineAt(headLen)}, end_line ${lineAt(content.length - tailLen)}, or re-run with a narrower query.]…`
+      : '. Re-read the file or re-run with a narrower query to see them.]…';
     return (
       head +
-      `\n\n…[${dropped.toLocaleString()} characters omitted from the middle of this result. ` +
-      `Re-read the file or re-run with a narrower query to see them.]…\n\n` +
+      `\n\n…[${dropped.toLocaleString()} characters omitted from the middle of this result${how}\n\n` +
       tail
     );
+  }
+
+  /** How many lines of a result one read back gives. */
+  const RESULT_LINES = 200;
+
+  /**
+   * Lines `start` to `end` of the result with this id, from the whole
+   * conversation the loop keeps, numbered as a file read is, a window of
+   * RESULT_LINES at most: `{ ok, text }`. A result cut to fit what is sent
+   * names its id and the lines it left out (truncateResult), so a model can
+   * read them without running the command or the search again. An id no
+   * result has says so, with the call written right.
+   */
+  function resultLines(messages, id, start, end) {
+    const want = String(id == null ? '' : id).trim();
+    const found = (Array.isArray(messages) ? messages : []).find((m) => m && m.role === 'tool' && String(m.tool_call_id) === want && typeof m.content === 'string');
+    if (!found) return { ok: false, text: `read_file was not run: no result in this conversation has the id "${want}". Call it as {"result": "<the id a cut note names>", "start_line": 1, "end_line": ${RESULT_LINES}}, with the id written as the note gives it.` };
+    const lines = found.content.split('\n');
+    const total = lines.length;
+    const s = Math.min(Math.max(1, Math.floor(Number(start) || 1)), total);
+    let e = Math.floor(Number(end) || 0);
+    if (!e || e < s) e = s + RESULT_LINES - 1;
+    e = Math.min(e, total, s + RESULT_LINES - 1);
+    const width = String(e).length;
+    const body = lines.slice(s - 1, e).map((l, k) => `${String(s + k).padStart(width)}| ${l}`).join('\n');
+    const more = e < total ? ` To read on, call read_file with result "${want}" and start_line ${e + 1}.` : '';
+    return { ok: true, text: `[Result ${want}: lines ${s}-${e} of ${total}. The numbers and "| " are not part of it.${more}]\n${body}` };
   }
 
   /**
@@ -143,7 +175,7 @@
     const opts = Object.assign({}, DEFAULTS, options || {});
     if (!Array.isArray(messages)) return [];
     return messages.map((m) => (m && m.role === 'tool' && typeof m.content === 'string' && m.content.length > opts.maxResult
-      ? Object.assign({}, m, { content: truncateResult(m.content, opts.maxResult) })
+      ? Object.assign({}, m, { content: truncateResult(m.content, opts.maxResult, m.tool_call_id) })
       : m));
   }
 
@@ -385,5 +417,5 @@
     return budgetToolResults(hideOldResults(head.concat(rolled, shown), opts), opts);
   }
 
-  window.HCAgentContext = { DEFAULTS, TIERS, optionsFor, budgetToolResults, hiddenCount, hideOldResults, readShown, withContext, compressHistory };
+  window.HCAgentContext = { DEFAULTS, TIERS, optionsFor, budgetToolResults, hiddenCount, hideOldResults, readShown, withContext, compressHistory, RESULT_LINES, resultLines };
 })();

@@ -55,6 +55,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   its own read, together, so everything that follows what a run has read
   sees each one. Larger models keep reading several files with several calls
   in one turn.
+- **A result cut to fit can be read back.** When a tool's result is too
+  long to send whole, the note in its middle now names the result and the
+  lines it left out, and read_file with that result and a range of lines
+  reads them from the whole result the run kept, with no command or search
+  run again.
 - **An answer that names code nobody saw is sent back.** A function or
   class an answer states as code, in backticks or followed by "(", that is
   in neither the project map nor anything the run read, the person wrote

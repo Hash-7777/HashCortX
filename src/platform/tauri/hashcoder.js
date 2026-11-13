@@ -711,11 +711,14 @@
       description: 'Read a file\'s content. Handles text, code, config and data files, and reads a PDF as its text — so a .pdf can be read directly, no shell tool needed. A scanned PDF says so rather than coming back empty. Other binary files return a metadata summary. A file over 400 lines, or a range asked for with start_line and end_line, comes back as numbered lines, 200 at a time by default: find the line with grep_code, then read around it.',
       parameters: {
         path: 'Absolute path to the file',
+        result: { type: 'string', description: 'Optional: the id a cut result names, to read the lines it left out, with start_line and end_line. With it, path is not read: give the file or command the result came from.' },
         start_line: { type: 'integer', description: 'Optional: the first line to read, counting from 1.' },
         end_line: { type: 'integer', description: 'Optional: the last line to read.' },
       },
       fn: (p) => {
         // paths is offered to a smaller model only, and the loop makes each file its own read (js/code/calls.js spreadReads); what reaches here is told how to ask.
+        // A cut result is read back by the agent loop, which keeps the whole of it (js/agent-context.js resultLines); outside a run there is none.
+        if (p.path == null && p.result != null) throw new Error(`read_file was not run: a result is read back by its id only in the run that made it, and "${p.result}" is not one here. Read the file again instead. Call it as ${JSON.stringify({ path: 'the file it came from', start_line: Number(p.start_line) || 1, end_line: Number(p.end_line) || 200 })}, or run the command again with a narrower query.`);
         if (p.path == null && Array.isArray(p.paths)) {
           const most = window.HCCodeCalls?.READS_AT_ONCE || 6, given = p.paths.filter((x) => typeof x === 'string' && x.trim());
           if (given.length > most) throw new Error(`read_file was not run: it reads at most ${most} files at once, and this named ${given.length}. Call it as ${JSON.stringify({ paths: given.slice(0, most) })}, then again for the rest.`);
@@ -1147,7 +1150,7 @@
 • remember_fact / recall_facts — save and retrieve user preferences, coding style, project context, and tech stack choices across sessions. Use silently; never recite memory unless asked.
 
 `;
-  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run'];
+  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run', 'result'];
   // The tools as every model is offered them, three with an example call at the end (HC.code.withExamples below).
   HC.code.toolList = () => HC.code.withExamples(HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
@@ -1535,7 +1538,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
   };
   /** A few words for each argument; places keep saying where a path starts. */
   HC.code.SHORT_ARGUMENT_WORDS = {
-    name: 'A name as code writes it, such as getNightlyRate', path: 'Project path, such as src/app.js', paths: 'Optional: up to six project paths, in place of path', dir: 'Project folder to search, or . for all', from: 'Project path of the file now', to: 'Project path it moves to',
+    name: 'A name as code writes it, such as getNightlyRate', path: 'Project path, such as src/app.js', paths: 'Optional: up to six project paths, in place of path', result: 'Optional: the id a cut result names, in place of path', dir: 'Project folder to search, or . for all', from: 'Project path of the file now', to: 'Project path it moves to',
     cwd: 'Project folder to run in; leave out for the project', start_line: 'Optional: first line', end_line: 'Optional: last line', content: 'The whole file',
     replace_whole: 'Optional: true to replace an existing file whole', append: 'Optional: true to add to the end', reason: 'Why, in a few words',
     search: 'Exact text from the file', replace: 'The new text', all: 'Optional: true to change every place', edits: 'Optional: more changes to this file',

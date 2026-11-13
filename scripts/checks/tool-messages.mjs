@@ -117,6 +117,7 @@ const cases = [
   ['state', 'a reading tool outside the project in a finding run', () => code.readingQuietly('read_file', { path: '/elsewhere/a.txt' }), []],
   ['call', 'read_file given paths where it reads one file a call', () => tool('read_file').fn({ paths: [`${R}/menu.js`, `${R}/notes.txt`] }), ['menu.js']],
   ['call', 'read_file given more than six paths', () => tool('read_file').fn({ paths: ['a1.js', 'a2.js', 'a3.js', 'a4.js', 'a5.js', 'a6.js', 'a7.js'] }), ['a1.js']],
+  ['call', 'read_file given a result id where no run is reading', () => tool('read_file').fn({ result: 'call_4', start_line: 3, end_line: 9 }), ['call_4']],
   ['state', 'a finding run asking for a tool that writes', () => code.readingQuietly('write_file', { path: 'a.txt' }), []],
   // Switched off, or not there.
   ['off', 'remembering a fact with memory switched off', () => { code.memoryOn = false; return tool('remember_fact').fn({ key: 'k', value: 'v' }); }, []],
