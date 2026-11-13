@@ -925,6 +925,33 @@ console.log('\nA commit:');
   guard.setMode('edits');
 }
 
+console.log('\nRefusals no permission mode switches off:');
+{
+  const was = sandbox.HC.code;
+  sandbox.HC.code = Object.assign({}, was || {}, { platform: { os: 'linux' } });
+  for (const mode of ['ask', 'edits', 'auto']) {
+    guard.clearSession();
+    guard.setProjectRoot(R);
+    guard.setMode(mode);
+    guard.setChecks({ test: 'npm test' });
+    guard.beginRun();
+    answer = 'allow-session';   // a yes for the session is ready if anything asks
+    await check(`${mode}: a command that reaches for a key store is refused, never asked`, () => guard.request('shell', `cat /home/sam/.ssh/id_ed25519 (in ${R})`, 'x', { command: 'cat', args: ['/home/sam/.ssh/id_ed25519'], cwd: R }), { allowed: false, asked: false });
+    await check(`${mode}: so is a command that would wipe the disk`, () => guard.request('shell', `rm -rf / (in ${R})`, 'x', { command: 'rm', args: ['-rf', '/'], cwd: R }), { allowed: false, asked: false });
+    await check(`${mode}: so is a command longer than the most one may be`, () => guard.request('shell', `echo ${'x'.repeat(2100)} (in ${R})`, 'x', { command: 'echo', args: ['x'.repeat(2100)], cwd: R }), { allowed: false, asked: false });
+    for (const [what, detail] of [['an install', { command: 'npm', args: ['install', 'left-pad'], cwd: R, install: true }], ['a command Undo cannot put back', { command: 'git', args: ['reset', '--hard'], cwd: R, destroys: true }], ['a commit', { command: 'git', args: ['commit'], cwd: R, commit: true }], ['a push', { command: 'git', args: ['push'], cwd: R, remote: true }]]) {
+      const shown = `${detail.command} ${detail.args.join(' ')} (in ${R})`;
+      await guard.request('shell', shown, 'x', detail);
+      await check(`${mode}: ${what} is asked about again after a yes for the session`, () => guard.request('shell', shown, 'x', detail), ASKED);
+    }
+    guard.endRun();
+  }
+  sandbox.HC.code = was;
+  guard.clearSession();
+  guard.setMode('edits');
+  answer = 'allow-once';
+}
+
 console.log('\nA command with the network closed, on macOS:');
 {
   const was = sandbox.HC.code;
