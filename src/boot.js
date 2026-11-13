@@ -86,6 +86,7 @@
     '/js/code/line-endings.js',
     '/js/code/verify.js',
     '/js/code/repo.js',
+    '/js/code/git.js',
     '/js/code/context.js',
     '/js/code/notes-seen.js',
     '/js/code/digest.js',

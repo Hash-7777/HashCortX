@@ -67,6 +67,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   middle size and up are told how its commit titles are written. Every
   model is told never to undo or overwrite a change it did not make. It is
   all read from git's own files: no command is run for it.
+- **HashCoder has git tools of its own.** git_status, git_diff and
+  git_log turn a few named arguments into one fixed git line, refuse
+  anything else with what to send instead, and run as any command does,
+  with the same question. A mid-sized model is offered status and diff, a
+  larger one all three; a small model none.
 - **An answer that names code nobody saw is sent back.** A function or
   class an answer states as code, in backticks or followed by "(", that is
   in neither the project map nor anything the run read, the person wrote

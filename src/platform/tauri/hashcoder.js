@@ -705,6 +705,18 @@
   // about by the same rules. Offered to a larger model only (toolsFor below).
   HC.code.THEN_RUN = { type: 'object', description: 'Optional: a command to run once the change is made, such as the tests, as shell_run takes it: {"command": "npm", "args": ["test"]}. It runs only if the change was made, is asked about as any command is, and its result comes back with the change\'s.', properties: { command: { type: 'string' }, args: { type: 'array', items: { type: 'string' } } }, required: ['command'] };
 
+  /** What each git tool says it is doing, when the model gave no reason. */
+  const GIT_REASONS = { git_status: 'Reading the state of the repository', git_diff: 'Reading what changed', git_log: 'Reading the latest commits' };
+  /** A git tool's call, as the fixed line it becomes, run through the guard as a command (js/code/git.js). */
+  HC.code.gitRun = async (name, p = {}) => {
+    const G = window.HCCodeGit;
+    if (!G) throw new Error(`${name} is not available in this window, so nothing was run. Carry on with shell_run, command "git", for what you need.`);
+    const line = G.argv(name, p);
+    if (line.error) throw new Error(line.error);
+    const r = await HC.code.shellRun(line.command, line.args, null, typeof p.reason === 'string' && p.reason ? p.reason : GIT_REASONS[name]);
+    return window.HCCodeDigest ? window.HCCodeDigest.shellResult(r, HC.code.outputLimit) : r;
+  };
+
   HC.code.TOOL_DEFINITIONS = [
     {
       name: 'read_file',
@@ -973,6 +985,32 @@
       // Long output is given in short, its failures kept (js/code/digest.js); the terminal shows it all.
       fn: (p) => HC.code.shellRun(p.command, p.args || [], p.cwd || null, p.reason).then((r) => (window.HCCodeDigest ? window.HCCodeDigest.shellResult(r, HC.code.outputLimit) : r)),
     },
+    // git through a fixed table, never a shell line (js/code/git.js); each still asked about as a command.
+    {
+      name: 'git_status',
+      description: 'The state of the git repository: the branch, where it is pushed, and each changed, added or untracked file. Use it rather than shell_run git status. Read only.',
+      parameters: {},
+      fn: (p) => HC.code.gitRun('git_status', p),
+    },
+    {
+      name: 'git_diff',
+      description: 'What changed, as a diff: the files not yet staged, the staged ones with staged: true, or this branch against another with base. Narrow it to one file or folder with path. Use it rather than shell_run git diff. Read only.',
+      parameters: {
+        path: { type: 'string', description: 'Optional: one file or folder to show the changes of' },
+        staged: { type: 'boolean', description: 'Optional: true for what is staged for the next commit' },
+        base: { type: 'string', description: 'Optional: a branch to compare this branch with, such as main' },
+      },
+      fn: (p) => HC.code.gitRun('git_diff', p),
+    },
+    {
+      name: 'git_log',
+      description: 'The latest commits, newest first: each one\'s short id and title, 15 unless n says how many (at most 50). Narrow it to one file or folder with path. Use it rather than shell_run git log. Read only.',
+      parameters: {
+        n: { type: 'integer', description: 'Optional: how many commits, 1 to 50' },
+        path: { type: 'string', description: 'Optional: only the commits that changed this file or folder' },
+      },
+      fn: (p) => HC.code.gitRun('git_log', p),
+    },
     {
       // Real photographs of the site's subject, by the search the Agent Swarm
       // uses (js/swarm/photos.js), under the same setting.
@@ -1151,6 +1189,8 @@
 
 `;
   const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run', 'result'];
+  /** Arguments optional for one tool only, where the same name is required for others. */
+  HC.code.OPTIONAL_FOR = { git_diff: ['path', 'staged', 'base'], git_log: ['n', 'path'] };
   // The tools as every model is offered them, three with an example call at the end (HC.code.withExamples below).
   HC.code.toolList = () => HC.code.withExamples(HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
@@ -1164,7 +1204,7 @@
             [k, (v && typeof v === 'object' && v.type) ? v : { type: 'string', description: String(v) }]
           )
         ),
-        required: Object.keys(t.parameters).filter(k => !OPTIONAL_ARGUMENTS.includes(k)),
+        required: Object.keys(t.parameters).filter(k => !OPTIONAL_ARGUMENTS.includes(k) && !(HC.code.OPTIONAL_FOR[t.name] || []).includes(k)),
       },
     },
   })));
@@ -1217,6 +1257,7 @@ TOOL ROUTING:
   with move_file is recorded and the user can undo it; one made with \`mv\`
   cannot be undone at all.
 • Explore structure        → list_dir
+• Repository state         → git_status, git_diff, git_log, rather than shell_run git
 • Build / test / git / inspect binary → shell_run
 • A house convention, policy, or past decision → search_knowledge(query) FIRST,
   and cite the source it gives you. Do not invent a convention. If it reports
@@ -1425,7 +1466,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
   // the call as text after it.
 
   /** The tools a mid-sized model is offered, a plan among them; find_photos only when it builds a site. */
-  HC.code.MID_MODEL_TOOLS = [...HC.code.SMALL_MODEL_TOOLS, 'view_image', 'find_photos', 'update_plan', 'uses_of'];
+  HC.code.MID_MODEL_TOOLS = [...HC.code.SMALL_MODEL_TOOLS, 'view_image', 'find_photos', 'update_plan', 'uses_of', 'git_status', 'git_diff'];
 
   HC.code.MID_MODEL_PROMPT = `You are HashCoder, a coding agent with the person's project open. You work by calling tools: do the task, do not only describe it.
 
@@ -1533,6 +1574,8 @@ ${HC.code.TOOL_TEXT_RULE}`;
     fuzzy_find: 'Find a file by a rough or misspelt name.',
     grep_code: 'Find where text appears inside files, with line numbers.',
     uses_of: 'Where a name is defined and every place that uses it.',
+    git_status: 'The branch and each changed file, read only.',
+    git_diff: 'What changed, as a diff; staged: true for what is staged. Read only.',
     shell_run: 'Run a command, such as the tests, a build or git: the program in command, the rest in args.',
     find_photos: 'Find openly licensed photos of a site\'s subject. Use only the addresses it returns, and credit each photo the page shows.',
   };

@@ -60,6 +60,8 @@ Commands **you** type in the terminal are not held to it. You can change directo
 
 **A command asked for with a change is still a command.** A larger model can ask for a command with a file change, such as the tests after an edit (`then_run` on `patch_file` and `write_file`). The change is made first; the command runs only if the change was made, as its own `shell_run`, through the same question, the same Auto list and the same sandbox as any command (`src/js/agent-loop.js`). A smaller model is not offered it, and a `then_run` a model was not offered runs nothing.
 
+**HashCoder's git tools are commands too.** `git_status`, `git_diff` and `git_log` take a few named arguments and turn them into one fixed git line from a table (`src/js/code/git.js`); an argument the table does not know, or a value that is not plain, is refused before anything runs. The line then goes through the same question, Auto list and sandbox as any command, and each one the table can build is a read Auto lets through. A diff or a log is read without the programs a repository may name for showing changes (`--no-ext-diff`, `--no-textconv`).
+
 **What raises a dialog, and what does not:**
 
 | | Inside the open project folder | Anywhere else |
