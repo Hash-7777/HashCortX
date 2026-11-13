@@ -43,6 +43,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   each to a call its tool takes and the app lets through, and short. A model
   on your computer under five billion parameters is not sent them: its tools
   stay one line each.
+- **A larger model can change a file and run its check in one call.**
+  patch_file and write_file take an optional then_run, the command to run
+  once the change is made, such as the tests. The change is made first; the
+  command runs only if it was made, as any command does, with the same
+  question, and one result brings back both. A model on your computer under
+  15 billion parameters is not offered it.
 - **An answer that names code nobody saw is sent back.** A function or
   class an answer states as code, in backticks or followed by "(", that is
   in neither the project map nor anything the run read, the person wrote

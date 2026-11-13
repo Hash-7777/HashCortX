@@ -58,6 +58,8 @@ Commands **you** type in the terminal are not held to it. You can change directo
 
 **What a question shows is what will run.** A command, and anything asked about every time, is shown whole, in a block that wraps and scrolls after six lines, never with its middle cut; a path keeps its middle cut and shows whole on hover. A command longer than 2,000 characters is refused before any question, and the model is told why. When the command, path or reason in a question holds characters that draw nothing, the question shows them as codes, such as `\u{202E}`, and says so, and so do the steps of a HashCoder run and a message waiting in the queue (`src/js/text-safety.js`).
 
+**A command asked for with a change is still a command.** A larger model can ask for a command with a file change, such as the tests after an edit (`then_run` on `patch_file` and `write_file`). The change is made first; the command runs only if the change was made, as its own `shell_run`, through the same question, the same Auto list and the same sandbox as any command (`src/js/agent-loop.js`). A smaller model is not offered it, and a `then_run` a model was not offered runs nothing.
+
 **What raises a dialog, and what does not:**
 
 | | Inside the open project folder | Anywhere else |

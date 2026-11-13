@@ -700,6 +700,11 @@
     return typeof result === 'string' ? result : JSON.stringify(result);
   }
 
+  // A command to run once a change is made, such as the tests, answered with the change in one result.
+  // The agent loop makes the change, then runs it as a shell_run (js/agent-loop.js), so it is asked
+  // about by the same rules. Offered to a larger model only (toolsFor below).
+  HC.code.THEN_RUN = { type: 'object', description: 'Optional: a command to run once the change is made, such as the tests, as shell_run takes it: {"command": "npm", "args": ["test"]}. It runs only if the change was made, is asked about as any command is, and its result comes back with the change\'s.', properties: { command: { type: 'string' }, args: { type: 'array', items: { type: 'string' } } }, required: ['command'] };
+
   HC.code.TOOL_DEFINITIONS = [
     {
       name: 'read_file',
@@ -720,6 +725,7 @@
         replace_whole: { type: 'boolean', description: 'Optional: true when an existing file is meant to be replaced whole, not edited.' },
         append: { type: 'boolean', description: 'Optional: true to add content to the end of the file, keeping all that is in it.' },
         reason:  'Why you are writing this file',
+        then_run: HC.code.THEN_RUN,
       },
       fn: async (p) => {
         // A Word, Excel or PDF file, an archive or a picture is packed, not text: written as text it never opens.
@@ -744,6 +750,7 @@
         all:     { type: 'boolean', description: 'Optional: true to change every place the search appears, rather than exactly one.' },
         edits:   { type: 'array', description: 'Optional: more changes to the same file, made with the first one.', items: { type: 'object', properties: { search: { type: 'string' }, replace: { type: 'string' }, all: { type: 'boolean' } }, required: ['search', 'replace'] } },
         reason:  'What this change does',
+        then_run: HC.code.THEN_RUN,
       },
       fn: (p) => HC.code.patchFile(p.path, p.search, p.replace, p.reason, p.edits, p.all === true),
     },
@@ -1132,7 +1139,7 @@
 • remember_fact / recall_facts — save and retrieve user preferences, coding style, project context, and tech stack choices across sessions. Use silently; never recite memory unless asked.
 
 `;
-  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset'];
+  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run'];
   // The tools as every model is offered them, three with an example call at the end (HC.code.withExamples below).
   HC.code.toolList = () => HC.code.withExamples(HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
@@ -1191,6 +1198,7 @@ TOOL ROUTING:
 • Who uses a name, and where it is defined → uses_of(name), before changing what it takes or renaming it
 • Three or more separate changes → update_plan first, then again as each is done
 • Targeted edit            → patch_file
+• A change, then its test  → patch_file or write_file with then_run: {command, args}, one call
 • New file / full rewrite  → write_file
 • A screenshot, diagram, mockup or photo → view_image, then say what is in
   it. Never describe an image from its file name.
@@ -1440,9 +1448,19 @@ ${HC.code.TOOL_TEXT_RULE}`;
   HC.code.toolsFor = (size, list, site) => {
     const names = size === 'small' ? HC.code.SMALL_MODEL_TOOLS : size === 'mid' ? HC.code.MID_MODEL_TOOLS : null;
     if (!names) return list;
-    const few = HC.code.inFewWords(HC.code.shortPlaces(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site))));
+    const few = HC.code.inFewWords(HC.code.shortPlaces(HC.code.withoutLargerOnly(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site)))));
     return size === 'mid' ? HC.code.withExamples(few) : few;
   };
+
+  /** Arguments only a larger model is offered: a change and its check in one call is more than a smaller one reliably writes. */
+  HC.code.LARGER_ONLY = ['then_run'];
+  /** The tools without those arguments. */
+  HC.code.withoutLargerOnly = (list) => list.map((tool) => {
+    const p = tool.function && tool.function.parameters;
+    if (!p || !p.properties || !HC.code.LARGER_ONLY.some((k) => k in p.properties)) return tool;
+    const properties = Object.fromEntries(Object.entries(p.properties).filter(([k]) => !HC.code.LARGER_ONLY.includes(k)));
+    return { ...tool, function: { ...tool.function, parameters: { ...p, properties, required: (p.required || []).filter((k) => !HC.code.LARGER_ONLY.includes(k)) } } };
+  });
 
   /**
    * The tools with every place they take described as a path from the

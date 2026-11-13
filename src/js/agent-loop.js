@@ -121,7 +121,32 @@
         const results = new Map(), failures = new Map();
         const checked = proof ? proof.checks.length : 0;   // checks before this turn's calls
 
+        // A change and the command that checks it, asked for in one call: write_file or patch_file with
+        // then_run, offered to a larger model only (platform/tauri/hashcoder.js). The change is made as its
+        // own call; only if it was made, the command runs as its own shell_run, through the same guard,
+        // record and screen as any command, so it is asked about or not by the same rules. One result
+        // answers the call, holding both.
+        async function changeThenRun(call) {
+          const { then_run: then, ...rest } = call.arguments;
+          const change = { ...call, arguments: rest };
+          await runOne(change);
+          const read = (t) => { try { return JSON.parse(t); } catch { return t; } };
+          let out = results.get(change);
+          if (failures.has(change)) failures.set(call, out);
+          else if (!then || typeof then !== 'object' || Array.isArray(then) || typeof then.command !== 'string' || !then.command.trim()) {
+            out = JSON.stringify({ change: read(out), then_run: { error: 'then_run was not run: it takes the program apart from its arguments, as in "then_run": {"command": "npm", "args": ["test"]}. The change was made: run the check with shell_run, or write then_run that way next time.' } });
+          } else {
+            const args = { command: then.command.trim(), args: Array.isArray(then.args) ? then.args.map(String) : [], ...(typeof then.cwd === 'string' && then.cwd ? { cwd: then.cwd } : {}), reason: typeof then.reason === 'string' && then.reason ? then.reason : `Check the change to ${baseName(rest.path || '')}` };
+            const run = { id: `${call.id}_then`, name: 'shell_run', arguments: window.HCCodePaths.argsFromRoot(window.HCCodeCalls.normalize(args, schemaOf('shell_run')).args, sharedState.projectRoot) };
+            await runOne(run);
+            out = JSON.stringify({ change: read(out), then_run: read(results.get(run)) });
+            if (failures.has(run)) failures.set(call, out);
+          }
+          results.set(call, out);
+        }
+
         async function runOne(call) {
+          if (call.arguments?.then_run !== undefined && (call.name === 'write_file' || call.name === 'patch_file') && schemaOf(call.name)?.function?.parameters?.properties?.then_run) return changeThenRun(call);
           // Shell preview goes to the terminal before the command runs.
           if (call.name === 'shell_run') {
             const cmd = call.arguments?.command || '';

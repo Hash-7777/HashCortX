@@ -73,20 +73,20 @@ const words = (content) => ({ content, tool_calls: [] });
 /** The tools a run is given: reads answer at once or later, a change and a command, and one that fails. */
 function project() {
   const files = { '/p/a.js': 'const a = 1;\n', '/p/b.js': 'const b = 2;\n' };
-  const ran = [];
+  const ran = [], given = [];
   const tools = [
     { name: 'read_file', fn: async (a) => { if (a.path === '/p/a.js') await later(15); ran.push(['read', a.path]); return files[a.path] ?? JSON.stringify({ error: 'no such file' }); } },
-    { name: 'patch_file', fn: async (a) => { if (a.path === '/p/locked.js') throw new Error('Permission denied: write /p/locked.js.'); ran.push(['patch', a.path]); files[a.path] = 'changed'; return JSON.stringify({ ok: true, path: a.path }); } },
-    { name: 'shell_run', fn: async (a) => { ran.push(['run', a.command]); return JSON.stringify({ code: 0, stdout: 'ok', stderr: '' }); } },
+    { name: 'patch_file', fn: async (a) => { given.push(Object.keys(a).sort().join()); if (a.path === '/p/locked.js') throw new Error('Permission denied: write /p/locked.js.'); ran.push(['patch', a.path]); files[a.path] = 'changed'; return JSON.stringify({ ok: true, path: a.path }); } },
+    { name: 'shell_run', fn: async (a) => { if (a.command === 'refused') throw new Error('Not allowed: the person said no.'); ran.push(['run', a.command, ...(a.args || [])]); return JSON.stringify({ code: (a.args || []).includes('--bail') ? 1 : 0, stdout: 'ok', stderr: '' }); } },
   ];
-  return { files, ran, tools };
+  return { files, ran, given, tools };
 }
 
 /**
  * One run. `script(messages, n)` gives the model's n-th turn (from 1); a turn
  * that is an Error is thrown. `finish` is the finishing list the mode builds.
  */
-async function runWith({ script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [], receipt = false } = {}) {
+async function runWith({ script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [], receipt = false, offerThen = false } = {}) {
   const P = project();
   sandbox.HC = { code: { TOOL_DEFINITIONS: P.tools.map((t) => ({ name: t.name, fn: t.fn })), request, asks, plan: null, readWholeQuietly: async () => '', linesQuietly: async () => '' }, undo: { lastFor: () => null }, guard: { noteBlocked: () => {} } };
   const scr = screen(receipt);
@@ -94,7 +94,7 @@ async function runWith({ script, finish = [], size = 'full', queue = null, signa
   const sent = [];
   let n = 0, ctx = null;
   const o = {
-    messages, tools: P.tools.map((t) => ({ type: 'function', function: { name: t.name } })), label: '', signal,
+    messages, tools: P.tools.map((t) => ({ type: 'function', function: { name: t.name, ...(offerThen && t.name === 'patch_file' ? { parameters: { type: 'object', properties: { path: { type: 'string' }, search: { type: 'string' }, replace: { type: 'string' }, then_run: { type: 'object' } } } } : {}) } })), label: '', signal,
     ui: scr.ui, temperature: 0.2,
     state: { size, local: size !== 'full', light: false, projectRoot: '/p', projectChecks: null, codeMap: null },
     prefs: () => prefs,
@@ -127,7 +127,38 @@ console.log('\nA reading command answered by the app:');
   ok('a model\'s cat is answered by read_file: the file is read, no command is started', json(r.P.ran) === '[["read","/p/b.js"]]', json(r.P.ran));
   ok('...and the answer says so, with the file in it', /^Answered by the app's own reading \(read_file\), with no program started; call read_file directly next time\.\nconst b = 2;/.test(result && result.content), result && result.content);
   const ls = await runWith({ script: (m, n) => (n === 1 ? turnOf(callOf('shell_run', { command: 'npm', args: ['test'] })) : words('Ran it.')) });
-  ok('a command it cannot answer runs as before', json(ls.P.ran) === '[["run","npm"]]', json(ls.P.ran));
+  ok('a command it cannot answer runs as before', json(ls.P.ran) === '[["run","npm","test"]]', json(ls.P.ran));
+}
+
+console.log('\nA change and its check in one call (then_run):');
+{
+  const change = (extra) => ({ path: '/p/a.js', search: 'const a = 1;', replace: 'const a = 2;', ...extra });
+  const one = (args) => (m, n) => (n === 1 ? turnOf(callOf('patch_file', args)) : words('Changed it and the tests pass.'));
+  const r = await runWith({ offerThen: true, script: one(change({ then_run: { command: 'npm', args: ['test'] } })) });
+  ok('the change is made first, then the command, through the shell tool', json(r.P.ran) === '[["patch","/p/a.js"],["run","npm","test"]]', json(r.P.ran));
+  ok('...the change tool is given the change alone, without the command', json(r.P.given) === '["path,replace,search"]', json(r.P.given));
+  const results = r.messages.filter((m) => m.role === 'tool');
+  let both = null; try { both = JSON.parse(results[0].content); } catch { both = null; }
+  ok('one result answers the call, holding both: the change and what the command gave', results.length === 1 && results[0].tool_call_id === r.messages.find((m) => m.tool_calls)?.tool_calls[0].id && both?.change?.ok === true && both?.then_run?.code === 0, results.map((m) => m.content).join(' | '));
+  const proof = r.ctx.proof;
+  ok('the record has the file changed, then the check that ran after it, passed', json(proof.changed) === '["/p/a.js"]' && proof.checks.length === 1 && proof.checks[0].pass === true && /^npm test/.test(proof.checks[0].command), json(proof.checks));
+  ok('the screen shows the change and the command as their own steps, as two calls would be', r.scr.of('changed').map((e) => e[1]).join() === 'patch_file,shell_run' && r.scr.of('tool').map((e) => e[1]).join() === 'patch_file,shell_run' && r.scr.of('terminal').some((e) => /npm test/.test(e[1])), json([r.scr.of('changed'), r.scr.of('tool'), r.scr.of('terminal')]));
+
+  const failed = await runWith({ offerThen: true, script: one({ path: '/p/locked.js', search: 'x', replace: 'y', then_run: { command: 'npm', args: ['test'] } }) });
+  ok('a change that fails runs no command, and the result is the change\'s own error', json(failed.P.ran) === '[]' && /Permission denied/.test(failed.messages.find((m) => m.role === 'tool').content) && failed.ctx.proof.checks.length === 0, json(failed.P.ran));
+
+  const refused = await runWith({ offerThen: true, script: one(change({ then_run: { command: 'refused', args: [] } })) });
+  let said = null; try { said = JSON.parse(refused.messages.find((m) => m.role === 'tool').content); } catch { said = null; }
+  ok('a command refused at its question leaves the change made, and the result says both', json(refused.P.ran) === '[["patch","/p/a.js"]]' && said?.change?.ok === true && /person said no/.test(said?.then_run?.error || ''), json(said));
+
+  const red = await runWith({ offerThen: true, script: one(change({ then_run: { command: 'npm', args: ['test', '--bail'] } })) });
+  ok('a check that fails is kept as failed, after the change', red.ctx.proof.checks.length === 1 && red.ctx.proof.checks[0].pass === false && json(red.ctx.proof.changed) === '["/p/a.js"]', json(red.ctx.proof.checks));
+
+  const notOffered = await runWith({ script: one(change({ then_run: { command: 'npm', args: ['test'] } })) });
+  ok('a model not offered then_run gets no command run for it: the change alone is made', json(notOffered.P.ran) === '[["patch","/p/a.js"]]', json(notOffered.P.ran));
+
+  const bad = await runWith({ offerThen: true, script: one(change({ then_run: 'npm test' })) });
+  ok('then_run written as a line, not { command, args }, runs nothing and says how to write it', json(bad.P.ran) === '[["patch","/p/a.js"]]' && /then_run was not run/.test(JSON.parse(bad.messages.find((m) => m.role === 'tool').content).then_run?.error || '') && /"command": "npm", "args": \["test"\]/.test(JSON.parse(bad.messages.find((m) => m.role === 'tool').content).then_run.error), bad.messages.find((m) => m.role === 'tool').content);
 }
 
 console.log('\nThe loop runs with no page:');

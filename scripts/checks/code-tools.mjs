@@ -22,6 +22,7 @@ vm.createContext(sandbox);
 vm.runInContext(src('js', 'model-profile.js'), sandbox, { filename: 'model-profile.js' });
 vm.runInContext(src('platform', 'tauri', 'hashcoder.js'), sandbox, { filename: 'hashcoder.js' });
 const HC = sandbox.window.HC;
+const byNameOf = (tools, n) => tools.find((t) => t.function.name === n);
 
 console.log('The tool list:');
 {
@@ -37,7 +38,7 @@ console.log('The tool list:');
     const [k, v] = Object.entries(withSchema.parameters).find(([, x]) => x && typeof x === 'object' && x.type);
     ok('an argument given as a schema is kept as it is', JSON.stringify(list.find((t) => t.function.name === withSchema.name).function.parameters.properties[k]) === JSON.stringify(v));
   }
-  const optional = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset'];
+  const optional = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run'];
   ok('every argument is required but the ones optional by name', list.every((t) => {
     const def = HC.code.TOOL_DEFINITIONS.find((d) => d.name === t.function.name);
     return t.function.parameters.required.join() === Object.keys(def.parameters).filter((k) => !optional.includes(k)).join();
@@ -75,6 +76,16 @@ console.log('\nThe size of a model decides how HashCoder is set up for it:');
   const list = HC.code.toolList();
   ok('a larger model is offered every tool and the full instructions', HC.code.toolsFor('full', list, '') === list && HC.code.promptFor('full', true) === HC.code.SYSTEM_PROMPT);
   ok('...which mention long-term memory only while HashCoder may use it', !/remember_fact/.test(HC.code.promptFor('full')) && /remember_fact \/ recall_facts/.test(HC.code.promptFor('full', true)) && /REASONING:/.test(HC.code.promptFor('full')));
+}
+
+console.log('\nA change and its check in one call:');
+{
+  const list = HC.code.toolList();
+  const has = (tools) => tools.filter((t) => 'then_run' in ((t.function.parameters || {}).properties || {})).map((t) => t.function.name).sort().join();
+  ok('a larger model is offered then_run on patch_file and write_file, and on no other tool', has(HC.code.toolsFor('full', list, '')) === 'patch_file,write_file', has(HC.code.toolsFor('full', list, '')));
+  ok('...optional, written as shell_run takes a command', !byNameOf(list, 'patch_file').function.parameters.required.includes('then_run') && JSON.stringify(HC.code.THEN_RUN.required) === '["command"]' && HC.code.THEN_RUN.properties.args.type === 'array' && /as shell_run takes it/.test(HC.code.THEN_RUN.description));
+  ok('a mid-sized or small model is not offered it', has(HC.code.toolsFor('mid', list, 'a site')) === '' && has(HC.code.toolsFor('small', list, 'a site')) === '');
+  ok('the full instructions say when to use it', /A change, then its test +→ patch_file or write_file with then_run/.test(HC.code.SYSTEM_PROMPT) && !/then_run/.test(HC.code.MID_MODEL_PROMPT + HC.code.SMALL_MODEL_PROMPT));
 }
 
 console.log('\nA mid-sized local model:');
@@ -115,9 +126,11 @@ console.log('\nSmall and mid-sized models write paths from the project folder:')
   ok('a larger model is left to describe places as they were', full === list && places(full).some(([, d]) => /^Absolute/.test(d)));
   const small = HC.code.toolsFor('small', list, '');
   const byName = new Map(list.map((t) => [t.function.name, t]));
-  ok('only the wording changes: every tool keeps its name, arguments, types and which are required',
-    small.every((t) => { const o = byName.get(t.function.name); const a = t.function.parameters, b = o.function.parameters;
-      return JSON.stringify(Object.keys(a.properties)) === JSON.stringify(Object.keys(b.properties)) && JSON.stringify(a.required) === JSON.stringify(b.required)
+  // A larger model's then_run is not offered to a smaller one (js/agent-loop.js runs it only where it was offered).
+  const larger = (keys) => keys.filter((k) => !HC.code.LARGER_ONLY.includes(k));
+  ok('only the wording changes: every tool keeps its name, arguments, types and which are required, but the arguments only a larger model is offered',
+    JSON.stringify(HC.code.LARGER_ONLY) === '["then_run"]' && small.every((t) => !('then_run' in t.function.parameters.properties)) && small.every((t) => { const o = byName.get(t.function.name); const a = t.function.parameters, b = o.function.parameters;
+      return JSON.stringify(Object.keys(a.properties)) === JSON.stringify(larger(Object.keys(b.properties))) && JSON.stringify(a.required) === JSON.stringify(larger(b.required))
         && Object.keys(a.properties).every((k) => a.properties[k].type === b.properties[k].type && JSON.stringify(a.properties[k].items) === JSON.stringify(b.properties[k].items)); }));
   const mid = HC.code.toolsFor('mid', list, 'a site');
   // A mid-sized model's patch_file, shell_run and grep_code also end with an example call (scripts/checks/code-tool-examples.mjs).
