@@ -327,6 +327,11 @@
   /** Whether the person has asked for git work anywhere in this conversation. */
   const asked = (messages) => { const t = personsText(messages); return GIT_ASK.test(t) || PR.test(t); };
 
+  /** Words a person uses when the work is about a project's environment settings or secrets (the env_names tool). */
+  const ENV_ASK = /\.env\b|\bdotenv\b|\benv(?:ironment)?\s+(?:var(?:iable)?s?|files?|settings?)\b|\bsecrets?\b|\bcredentials?\b/i;
+  /** Whether the person has asked about them anywhere in this conversation. */
+  const askedEnv = (messages) => ENV_ASK.test(personsText(messages));
+
   /** Words a person uses when they ask for checks that run on the code host. */
   const CI_ASK = /\bCI\b|\bworkflows?\b|\bpipelines?\b|\bgithub actions?\b|\bcontinuous integration\b/i;
   /** Whether the person has asked for such checks anywhere in this conversation. */
@@ -362,5 +367,5 @@
     return /(?:^|[\\/])\.github[\\/]workflows[\\/]/.test(String(path || '')) ? `write_file was not run: ${String(path).split(/[\\/]/).slice(-3).join('/')} is a workflow that runs on the code host, and the person has not asked for one. Do only what the request asks; if checks on the code host would help, say so in one line of your answer.` : null;
   }
 
-  window.HCCodeGit = { LOG_MOST, LOG_FIRST, ARGS, argv, COMMIT_MOST, BIG_FILE, commitPlan, commitFailure, commitId, outgoingLine, outgoingOf, LISTED, remotePlan, remoteFailure, pullRequestBody, draftTitle, GIT_ASK, asked, CI_ASK, askedCI, GIT_WRITES, unasked, unaskedFile };
+  window.HCCodeGit = { LOG_MOST, LOG_FIRST, ARGS, argv, COMMIT_MOST, BIG_FILE, commitPlan, commitFailure, commitId, outgoingLine, outgoingOf, LISTED, remotePlan, remoteFailure, pullRequestBody, draftTitle, GIT_ASK, asked, CI_ASK, askedCI, ENV_ASK, askedEnv, GIT_WRITES, unasked, unaskedFile };
 })();

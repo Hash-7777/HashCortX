@@ -105,6 +105,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   offers "Commit these changes" with a title drafted from your request in the
   repository's style, which you can edit; it runs the same commit, with the
   same question.
+- **HashCoder can see which settings a .env file names, never their
+  values.** The file is read on the native side and only the names, with
+  which are empty, reach the model, so it can write an example settings file
+  or say what is missing without seeing a key. It is offered only when the
+  conversation is about the project's settings or secrets.
 - **HashCoder keeps to what you asked.** Every size of model is told to fit
   its steps to the request: a small page or a one-line fix is a few steps
   and an answer, with no repository, commit, push, workflow or deploy

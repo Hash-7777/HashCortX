@@ -39,7 +39,7 @@ console.log('The tool list:');
     ok('an argument given as a schema is kept as it is', JSON.stringify(list.find((t) => t.function.name === withSchema.name).function.parameters.properties[k]) === JSON.stringify(v));
   }
   const optional = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run', 'result'];
-  ok('only the git tools have arguments optional for them alone', JSON.stringify(Object.keys(HC.code.OPTIONAL_FOR).sort()) === '["git_commit","git_diff","git_log","git_pull","git_push"]');
+  ok('only the git tools and env_names have arguments optional for them alone', JSON.stringify(Object.keys(HC.code.OPTIONAL_FOR).sort()) === '["env_names","git_commit","git_diff","git_log","git_pull","git_push"]');
   ok('every argument is required but the ones optional by name, or for that tool', list.every((t) => {
     const def = HC.code.TOOL_DEFINITIONS.find((d) => d.name === t.function.name);
     return t.function.parameters.required.join() === Object.keys(def.parameters).filter((k) => !optional.includes(k) && !(HC.code.OPTIONAL_FOR[t.function.name] || []).includes(k)).join();

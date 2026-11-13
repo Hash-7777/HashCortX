@@ -26,6 +26,7 @@ use commands::{
         fs_move_file, fs_path_inside_root, fs_read_base64, fs_read_file, fs_search_files,
         fs_set_root, fs_write_file,
     },
+    env_names::env_names,
     git_commit::git_commit_signed,
     git_remote::git_remote_run,
     host::which_programs,
@@ -102,6 +103,8 @@ pub fn run() {
             // Which programs of a fixed list are installed: found as files, nothing run (commands/host.rs).
             which_programs,
             // A commit the person agreed to, made with their own git setup so it is signed (commands/git_commit.rs).
+            // The names a project's environment file sets, never their values (commands/env_names.rs).
+            env_names,
             git_commit_signed,
             // A push, pull or fetch the person agreed to, of a remote the project names (commands/git_remote.rs).
             git_remote_run,

@@ -753,6 +753,15 @@
     return JSON.stringify({ committed: G.commitId(made.stdout), branch: HC.code.runRepo?.()?.branch || null, files: [...plan.files.map((f) => f.path), ...plan.notRun] });
   };
 
+  /** The names an environment file sets, from Rust, which reads the file and keeps every value. */
+  HC.code.envNames = async (p = {}) => {
+    const place = fromProject(p && typeof p.path === 'string' && p.path.trim() ? p.path.trim() : '.env');
+    const names = await HC.invoke('env_names', { path: place });
+    const name = String(place).split(/[\\/]/).pop();
+    if (!Array.isArray(names) || !names.length) return `${name} names no setting.`;
+    return `${name} names ${names.length} setting${names.length === 1 ? '' : 's'}; their values are never shown:\n${names.map((n) => `${n.name}${n.empty ? ' (empty)' : ''}`).join('\n')}`;
+  };
+
   /** A new branch, made through the guard as any command is. */
   HC.code.gitBranch = async (p = {}) => {
     const G = window.HCCodeGit;
@@ -1099,6 +1108,15 @@
       fn: (p) => HC.code.gitCommit(p),
     },
     {
+      // Names only: the file is read in Rust and no value reaches the page or the model (commands/env_names.rs).
+      name: 'env_names',
+      description: 'The settings a project\'s environment file (.env and the like) names, and which are empty, never their values. Use it to write an example settings file, wire a setting into code, or say what is missing, without reading the file.',
+      parameters: {
+        path: { type: 'string', description: 'Optional: the file, .env at the top of the project unless given' },
+      },
+      fn: (p) => HC.code.envNames(p),
+    },
+    {
       name: 'git_branch',
       description: 'Make a new branch from where the repository is now and switch to it, for work the person asked to keep apart. The person is asked first.',
       parameters: {
@@ -1303,7 +1321,7 @@
 `;
   const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run', 'result'];
   /** Arguments optional for one tool only, where the same name is required for others. */
-  HC.code.OPTIONAL_FOR = { git_diff: ['path', 'staged', 'base'], git_log: ['n', 'path'], git_commit: ['body', 'paths'], git_push: ['branch', 'remote'], git_pull: ['branch', 'remote'] };
+  HC.code.OPTIONAL_FOR = { git_diff: ['path', 'staged', 'base'], git_log: ['n', 'path'], git_commit: ['body', 'paths'], git_push: ['branch', 'remote'], git_pull: ['branch', 'remote'], env_names: ['path'] };
   // The tools as every model is offered them, three with an example call at the end (HC.code.withExamples below).
   HC.code.toolList = () => HC.code.withExamples(HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
@@ -1546,7 +1564,7 @@ ${MEMORY_SECTION}REASONING:
   };
 
   /** The tools a small model is offered. */
-  HC.code.SMALL_MODEL_TOOLS = ['read_file', 'list_dir', 'grep_code', 'fuzzy_find', 'patch_file', 'write_file', 'shell_run', 'delete_file', 'move_file'];
+  HC.code.SMALL_MODEL_TOOLS = ['read_file', 'list_dir', 'grep_code', 'fuzzy_find', 'patch_file', 'write_file', 'shell_run', 'delete_file', 'move_file', 'env_names'];
 
   HC.code.SMALL_MODEL_PROMPT = `You are HashCoder, a coding agent. You change files in the person's project by calling tools. Do the task; do not only describe it.
 
@@ -1622,6 +1640,8 @@ ${HC.code.TOOL_TEXT_RULE}`;
     if (conversation) HC.code.gitAsked = window.HCCodeGit?.asked ? window.HCCodeGit.asked(conversation) : true;
     if (conversation) HC.code.ciAsked = window.HCCodeGit?.askedCI ? window.HCCodeGit.askedCI(conversation) : true;
     if (conversation && !HC.code.gitAsked) list = list.filter((t) => !/^git_/.test(t.function.name));
+    // env_names only where the person spoke of the project's settings or secrets: every tool offered costs a small model some of its accuracy.
+    if (conversation && !(window.HCCodeGit?.askedEnv ? window.HCCodeGit.askedEnv(conversation) : true)) list = list.filter((t) => t.function.name !== 'env_names');
     if (!names) return list;
     const few = HC.code.inFewWords(HC.code.shortPlaces(HC.code.withPaths(HC.code.withoutLargerOnly(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site))))));
     return size === 'mid' ? HC.code.withExamples(few) : few;
@@ -1698,6 +1718,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
     grep_code: 'Find where text appears inside files, with line numbers.',
     uses_of: 'Where a name is defined and every place that uses it.',
     git_status: 'The branch and each changed file, read only.',
+    env_names: 'The settings an environment file such as .env names, and which are empty; never their values.',
     git_diff: 'What changed, as a diff; staged: true for what is staged. Read only.',
     git_commit: 'Commit what this run changed; the person is asked every time. title is one line in the repository\'s style.',
     shell_run: 'Run a command, such as the tests, a build or git: the program in command, the rest in args.',
