@@ -866,7 +866,8 @@
     /\baccording\s+to\s+(?:the|their|its|his|her)\s+(?:website|official\s+(?:site|page)|social\s+media(?:\s+profiles?)?|online\s+(?:listing|profile)s?|google\s+(?:listing|profile))\b/i,
     /\b(?:a|my)\s+(?:web\s+|online\s+|quick\s+)?search\s+(?:shows?|showed|found|finds|returned|revealed)\b/i,
   ];
-  const WEB_TOOLS = new Set(['web_search', 'fetch_url']);
+  // The chat's agents also search Wikipedia and PubMed; either is a search.
+  const WEB_TOOLS = new Set(['web_search', 'fetch_url', 'wikipedia', 'pubmed_search']);
   const CLAIM_STEP = 'Sent back: it said it searched, and nothing was searched';
   const CLAIM_SAYS = 'no web search and no page read ran';
 
