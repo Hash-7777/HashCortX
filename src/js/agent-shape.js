@@ -280,8 +280,8 @@
    * model's template reads that, including one that drops tool turns.
    */
   const markSource = (text) => (typeof window !== 'undefined' && window.HCSources ? window.HCSources.mark(text) : text);
-  /** Tools whose results come from outside the computer: a page, a web search, a photo search (js/code/outward.js FROM_OUTSIDE). */
-  const FROM_OUTSIDE = new Set(['fetch_url', 'web_search', 'find_photos']);
+  /** Tools whose results come from outside the computer: a page, a web, photo, Wikipedia or PubMed search (js/code/outward.js FROM_OUTSIDE). */
+  const FROM_OUTSIDE = new Set(['fetch_url', 'web_search', 'find_photos', 'wikipedia', 'pubmed_search']);
 
   function toolTurnsInWords(messages) {
     const out = [];

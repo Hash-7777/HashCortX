@@ -47,6 +47,7 @@ console.log('\nWhat a run has read:');
   const web = factsOf([ask('x'), ...step('fetch_url', { url: 'https://rates.example/today' })]);
   ok('a web page is material from outside, and not private', web.untrusted === true && web.private === false);
   ok('...and so is a search of the web, and of photos', factsOf([...step('web_search', { query: 'rates' })]).untrusted === true && factsOf([...step('find_photos', { query: 'lanes' })]).untrusted === true);
+  ok('...and a Wikipedia or PubMed search, as the chat\'s agents make them', factsOf([...step('wikipedia', { query: 'tides' })]).untrusted === true && factsOf([...step('pubmed_search', { query: 'tides' })]).untrusted === true);
   ok('a fetch that failed brought nothing in', factsOf([...step('fetch_url', { url: 'https://x.example' }, '{"error":"refused"}')]).untrusted === false);
   const sys = factsOf([...step('sys_books_search_records', { q: 'march' })]);
   ok('a connected system\'s records are both: from outside, and private', sys.untrusted === true && sys.private === true);

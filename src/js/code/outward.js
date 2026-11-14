@@ -23,7 +23,7 @@
   'use strict';
 
   /** Tools whose results come from outside the computer. */
-  const FROM_OUTSIDE = new Set(['fetch_url', 'web_search', 'find_photos']);
+  const FROM_OUTSIDE = new Set(['fetch_url', 'web_search', 'find_photos', 'wikipedia', 'pubmed_search']);
   /** Tools whose results are the person's own, kept by the app. */
   const PRIVATE_TOOLS = new Set(['search_knowledge', 'recall_facts']);
   /** A connected system's tool, as a model calls it (js/mcp/policy.js exposedName). */
