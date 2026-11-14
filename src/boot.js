@@ -180,6 +180,7 @@
     '/js/model-names.js',
     '/js/cloud-model-memory.js',
     '/js/model-limits.js',
+    '/js/chat/trim.js',
     '/js/cloud-catalogue.js',
     '/js/model-refresh.js',
     '/js/cloud-model-fetch.js',

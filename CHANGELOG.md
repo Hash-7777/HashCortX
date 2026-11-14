@@ -105,6 +105,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **An agent on a model on this computer is shown as much of the
+  conversation as its model can hold.** The conversation is fitted to the
+  model's own window, less room for its tool steps and its answer, rather
+  than cut to a fixed size: a model with a small window is not sent more
+  than it can read, and one with a large window keeps more of what was
+  said. The oldest messages go first, the instructions and the latest
+  exchanges are kept, and the model is told how many earlier messages it
+  cannot see.
+
 - **An answer that says it ran its Python, when it did not, is caught on
   more wordings.** "I ran it", "we have executed the code", and, for code
   that prints, "it printed …" now count, beside a result stated under the

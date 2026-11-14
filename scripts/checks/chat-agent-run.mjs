@@ -189,7 +189,7 @@ await (async () => {
 })();
 
 const app = src('js', 'app.js');
-ok('the chat hands an agent on the loop to it before the fixed trim', (() => { const at = app.indexOf('window.HCChatAgentRun?.onLoop(agent, modelEl.value)'), trim = app.indexOf('function trimBaseToContextBudget'); return at > 0 && trim > at; })());
+ok('the chat hands an agent on the loop to it before anything is cut to fit a window', (() => { const at = app.indexOf('window.HCChatAgentRun?.onLoop(agent, modelEl.value)'), trim = app.indexOf('window.HCChatTrim.fit(baseMessages'); return at > 0 && trim > at; })());
 ok('it is part of npm run check', /npm run check:chat-agent-run\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/agent-run.js)`);
 process.exit(fail ? 1 : 0);

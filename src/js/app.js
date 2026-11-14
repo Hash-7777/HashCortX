@@ -5892,21 +5892,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
     // An agent moved onto the shared loop runs there, the conversation sized to its model (js/chat/agent-run.js); the rest keep the fixed trim below.
     if (window.HCChatAgentRun?.onLoop(agent, modelEl.value)) return window.HCChatAgentRun.run({ agent, assistant, messages: baseMessages, tools, tracker, temperature, signal, onStatus, onFinalToken, model: modelEl.value, request: userText, queue: chatQueue, added: (text) => { window.HCChatAgentRun.placeAdded(state.messages, assistant, text); render(); }, call: (m, t, temp, s) => turns.turn({ messages: m, tools: t, temperature: temp, signal: s }), runTool: runOneTool, record: recordAgentEvent, typewriter: typewriterIntoBubble, fallback: () => runAgentFallback({ agent, assistant, signal, onStatus, onFinalToken }), closing: AGENT_CLOSING_TURN });
-    // Trim baseMessages so tool-call iterations have room: keep the base under 8K estimated tokens, leaving ~8K for tool history,
-    // dropping the oldest non-system pairs while the estimate is over budget. Each iteration adds an assistant tool-call and a result.
-    (function trimBaseToContextBudget() {
-      const est = (msgs) => msgs.reduce((s, m) => s + Math.ceil((m.content || "").length / 3.8), 0);
-      const BUDGET = 8000;
-      if (est(baseMessages) <= BUDGET) return;
-      const sysCount = baseMessages.filter(m => m.role === "system").length;
-      // Always keep: all system messages + last 4 non-system messages (2 user/assistant pairs)
-      while (baseMessages.length > sysCount + 4 && est(baseMessages) > BUDGET) {
-        // Find the first non-system message and drop it
-        const dropIdx = baseMessages.findIndex((m, i) => i >= sysCount);
-        if (dropIdx < 0) break;
-        baseMessages.splice(dropIdx, 1);
-      }
-    })();
+    // Fitted to its model's window, room left for its steps and answer, the model told what it cannot see (js/chat/trim.js); an agent on the shared loop returned above.
+    window.HCChatTrim.fit(baseMessages, { window: modelEl.value.startsWith("cloud:") ? window.HCModelLimits?.forContext?.(modelEl.value)?.window : Math.min((await HCLocalContext.infoOf(safeHost(), modelEl.value)).max, HCLocalContext.CEILING), tokensOf: HCLocalContext.tokensOf });
 
     if (localSteps) return runLocalAgentSteps({ assistant, messages: baseMessages, context: memBlock, tools, tracker, temperature, signal, onStatus, onFinalToken });
 
