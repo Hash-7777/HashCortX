@@ -132,21 +132,24 @@ console.log('\nOpenRouter — paid models only when the key can pay:');
   ] };
   on([/openrouter\.ai\/api\/v1\/models$/, respond(200, list)], [/openrouter\.ai\/api\/v1\/key$/, respond(200, { data: { is_free_tier: true, limit_remaining: null } })]);
   const free = await F.openrouter('k');
-  ok('a key without credit gets the free models only', ids(free).join() === 'cloud:openrouter:vendor/free-one:free');
+  const chat = (list) => list.filter((m) => !m.imageGen);
+  ok('a key without credit gets the free models only', ids(chat(free)).join() === 'cloud:openrouter:vendor/free-one:free');
+  ok('a free model that answers with pictures is offered as a picture model, after the chat ones', ids(free.filter((m) => m.imageGen)).join() === 'cloud:openrouter:vendor/captioned-pictures,cloud:openrouter:vendor/pictures:free' && free[0].value.endsWith('free-one:free'));
+  ok('...and one that answers with sound is not offered at all', !find(free, 'vendor/music-preview'));
   ok('... and says why', /free models only — this key has no credit/.test(free.note));
   ok('a free model keeps its limits and whether it calls tools', free[0].ctx === 131072 && free[0].out === 32768 && free[0].tools === true && free[0].free === true);
   ok('the key is used to ask what it can pay for', calls.some((c) => /\/key$/.test(c.url) && c.headers.Authorization === 'Bearer k'));
   on([/openrouter\.ai\/api\/v1\/models$/, respond(200, list)], [/openrouter\.ai\/api\/v1\/key$/, respond(200, { data: { is_free_tier: false, limit_remaining: 12.5 } })]);
   const paid = await F.openrouter('k');
-  ok('a key with credit gets the paid models too', ids(paid).join() === 'cloud:openrouter:vendor/free-one:free,cloud:openrouter:vendor/paid-one');
+  ok('a key with credit gets the paid models too', ids(chat(paid)).join() === 'cloud:openrouter:vendor/free-one:free,cloud:openrouter:vendor/paid-one');
   ok('... free first, with the paid one\'s limits', paid[1].out === 128000 && paid[1].tools === false && /paid models included/.test(paid.note));
   on([/openrouter\.ai\/api\/v1\/models$/, respond(200, list)], [/openrouter\.ai\/api\/v1\/key$/, respond(200, { data: { is_free_tier: false, limit_remaining: 0 } })]);
-  ok('a key whose spending limit is used up gets the free ones', (await F.openrouter('k')).length === 1);
+  ok('a key whose spending limit is used up gets the free ones', chat(await F.openrouter('k')).length === 1);
   on([/openrouter\.ai\/api\/v1\/models$/, respond(200, list)]);
   const keyless = await F.openrouter('');
-  ok('with no key the free list is still read', keyless.length === 1 && /add a key/.test(keyless.note) && !calls.some((c) => /\/key$/.test(c.url)));
+  ok('with no key the free list is still read', chat(keyless).length === 1 && /add a key/.test(keyless.note) && !calls.some((c) => /\/key$/.test(c.url)));
   on([/openrouter\.ai\/api\/v1\/models$/, respond(200, list)], [/openrouter\.ai\/api\/v1\/key$/, respond(500, 'down')]);
-  ok('a key check that fails leaves the free list', (await F.openrouter('k')).length === 1);
+  ok('a key check that fails leaves the free list', chat(await F.openrouter('k')).length === 1);
 }
 
 console.log('\nOpenAI — everything that answers the chat interface:');
@@ -158,7 +161,9 @@ console.log('\nOpenAI — everything that answers the chat interface:');
     { id: 'gpt-3.5-turbo-instruct', created: 1 }, { id: 'dall-e-3', created: 1 }, { id: 'omni-moderation-latest', created: 1 }, { id: 'computer-use-preview', created: 1 },
   ] })]);
   const got = await F.openai('k');
-  ok('chat models come back, newest first', ids(got).join() === 'cloud:openai:gpt-9-turbo,cloud:openai:o9-mini,cloud:openai:gpt-4o,cloud:openai:chatgpt-4o-latest');
+  ok('chat models come back, newest first', ids(got.filter((m) => !m.imageGen)).join() === 'cloud:openai:gpt-9-turbo,cloud:openai:o9-mini,cloud:openai:gpt-4o,cloud:openai:chatgpt-4o-latest');
+  ok('the picture models come last, marked as picture models', ids(got.filter((m) => m.imageGen)).join() === 'cloud:openai:dall-e-3,cloud:openai:gpt-image-1' && got[got.length - 1].imageGen === true);
+  ok('...a GPT one marked as reading the picture it changes, the older one not', find(got, 'gpt-image-1').sees === true && find(got, 'dall-e-3').sees === false);
   ok('models that only answer the Responses interface are left out', !find(got, 'gpt-5-codex') && !find(got, 'o3-pro'));
 }
 

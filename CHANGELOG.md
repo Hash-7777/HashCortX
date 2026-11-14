@@ -8,6 +8,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Pictures made by OpenAI and OpenRouter models, and a picture you
+  attach changed rather than imagined.** OpenAI's picture models and every
+  model OpenRouter lists as answering with pictures now appear in the
+  model menu after the chat models, and answer a chat message with the
+  picture it asks for. A picture attached to the request is sent to work
+  from: to OpenAI's GPT picture models on its address for changing
+  pictures, to OpenRouter's models beside the words, and to Gemini's
+  picture models in the conversation, where before only the words went. A
+  model that makes pictures from words alone says the attached picture was
+  not sent.
+
 ### Fixed
 
 - **A picture reaches every model that can see it, and never stops a

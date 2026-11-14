@@ -140,6 +140,7 @@
     '/js/page-facts.js',
     '/js/pdf-text.js',
     '/js/providers.js',
+    '/js/picture-make.js',
     '/js/request-cap.js',
     '/js/stream/sse.js',
     '/js/stream/first-sign.js',

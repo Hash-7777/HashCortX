@@ -3450,43 +3450,26 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
   }
 
-  // Image generation via Gemini (Nano Banana = gemini-3.1-flash-image-preview).
-  // Non-streaming — returns { text, images: ["data:image/png;base64,..."] }.
-  // The response modality is TEXT + IMAGE so any caption/description text is
-  // also returned alongside the generated image.
-  async function generateCloudImage(modelId, messages, signal) {
-    const key = (geminiKeyEl.value || "").trim();
-    if (!key) throw new Error("Google AI Studio key missing.\nAdd it in Settings → Cloud Models — free at aistudio.google.com");
-    const textMessages = messages.map(m => ({ role: m.role, content: m.content || "" }));
-    const systemMsg = HCAgentShape.systemOf(textMessages);
-    const geminiContents = textMessages
-      .filter(m => m.role !== "system")
-      .map(m => ({ role: m.role === "assistant" ? "model" : "user",
-                   parts: [{ text: m.content }] }));
-    const body = {
-      contents: geminiContents,
-      generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
-      ...(systemMsg ? { systemInstruction: { parts: [{ text: systemMsg.content }] } } : {}),
-    };
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`,
-      { method: "POST", referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal }
-    );
-    if (!res.ok) throw await httpFailure("gemini", res);
-    const data = await res.json();
-    const parts = data.candidates?.[0]?.content?.parts || [];
-    let text = "";
-    const images = [];
-    for (const part of parts) {
-      if (part.text) text += part.text;
-      if (part.inlineData) {
-        const mime = part.inlineData.mimeType || "image/png";
-        images.push(`data:${mime};base64,${part.inlineData.data}`);
-      }
-    }
-    if (!images.length) throw new Error("Gemini returned no image. Try rephrasing your prompt.");
-    return { text: text.trim(), images };
+  // Making a picture: the request each provider wants and what it sent back
+  // are js/picture-make.js; this sends it with the key and reads the answer.
+  // Returns { text, images: ["data:image/png;base64,..."] }.
+  async function generateCloudImage(provider, modelId, messages, signal) {
+    const keyEl = PROVIDER_KEY_ELEMENTS[provider];
+    const key = ((keyEl && keyEl.value) || "").trim();
+    if (!key) throw new Error(HCProviders.keyMissing(provider));
+    const req = window.HCPictureMake.requestFor(provider, modelId, messages);
+    const headers = Object.assign(HCProviders.headersFor(provider, key), provider === "gemini" ? { "x-goog-api-key": key } : {});   // Google's key goes in its own header, never the address
+    let body;
+    if (req.form) {   // a picture to change goes as a file; the browser writes the form's own type
+      delete headers["Content-Type"];
+      body = new FormData();
+      for (const [name, v] of req.form) typeof v === "string" ? body.append(name, v) : body.append(name, new Blob([Uint8Array.from(atob(v.base64), (c) => c.charCodeAt(0))], { type: v.type }), v.name);   // a file name only beside a file: with a string, a third value is refused
+    } else body = JSON.stringify(req.json);
+    const res = await fetch(req.url, { method: "POST", referrerPolicy: "no-referrer", headers, body, signal });
+    if (!res.ok) throw await httpFailure(provider, res);
+    const { text, images } = window.HCPictureMake.answerOf(provider, await res.json());
+    if (!images.length) throw new Error(`${cloudModelLabel(`cloud:${provider}:${modelId}`)} sent back no picture. Try saying what to draw another way.`);
+    return { text: [text, req.note].filter(Boolean).join("\n\n"), images };
   }
 
   // A model that never starts is left for another (js/stream/first-sign.js),
@@ -4832,7 +4815,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
             if (isImageGenModel(currentModelValue)) {
               assistant.firstTokenAt = Date.now();
               showImageGenLoading();
-              const { text, images } = await HCModelNow.around(currentModelValue, () => generateCloudImage(modelId, messages, ctrl.signal));
+              const { text, images } = await HCModelNow.around(currentModelValue, () => generateCloudImage(provider, modelId, messages, ctrl.signal));
               assistant.content = text;
               assistant.images = images;
             } else {

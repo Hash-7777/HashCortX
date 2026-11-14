@@ -220,7 +220,9 @@ console.log('\nEvery system message reaches the providers that take the rules ap
   ok('all of them, in order, as one', sys.role === 'system' && sys.content === 'rules\n\nlater note');
   ok('none is none', A.systemOf([{ role: 'user', content: 'q' }]) === null);
   const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
-  ok('no client reads only the first', !/\.find\(m => m\.role === "system"\)/.test(app) && (app.match(/HCAgentShape\.systemOf\(/g) || []).length === 5);
+  const pictures = readFileSync(join(here, '..', '..', 'src', 'js', 'picture-make.js'), 'utf8');
+  ok('no client reads only the first', !/\.find\(m => m\.role === "system"\)/.test(app) && (app.match(/HCAgentShape\.systemOf\(/g) || []).length === 4
+    && /filter\(\(m\) => m && m\.role === 'system'\)\.map\(\(m\) => m\.content\)\.join\('\\n\\n'\)/.test(pictures));
 }
 
 console.log('\nPython a model only showed, but spoke of as run, is run:');

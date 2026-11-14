@@ -156,12 +156,16 @@
       const now = Date.now();
       const list = (j.data || [])
         .filter((m) => m && typeof m.id === 'string' && m.id.includes('/') && !m.id.startsWith('~'))
-        // Text and nothing else. A model that also returns audio or pictures
-        // is a generator that captions its work — a music model listed as
-        // text-and-audio at no cost was offered as a free chat model.
-        .filter((m) => { const outs = (m.architecture && m.architecture.output_modalities) || ['text']; return outs.length > 0 && outs.every((o) => o === 'text'); })
+        // A chat model answers in text and nothing else: one that also
+        // returns audio is a generator that captions its work, and a music
+        // model listed as text-and-audio at no cost is not a chat model. One
+        // that answers with pictures is offered as a picture model, made
+        // through OpenRouter's own address for them (js/picture-make.js).
+        .map((m) => { const outs = (m.architecture && m.architecture.output_modalities) || ['text']; return { m, outs, pictures: outs.includes('image') && outs.every((o) => o === 'image' || o === 'text') }; })
+        .filter(({ outs, pictures }) => pictures || (outs.length > 0 && outs.every((o) => o === 'text')))
+        .map(({ m, pictures }) => (pictures ? { ...m, pictures } : m))
         .filter((m) => !m.expiration_date || !(Date.parse(m.expiration_date) <= now))
-        .filter((m) => !NOT_CHAT.test(m.id) && !/venice|thudm\/glm|glm-z/i.test(m.id) && !isExcluded(m))
+        .filter((m) => (m.pictures || !NOT_CHAT.test(m.id)) && !/venice|thudm\/glm|glm-z/i.test(m.id) && !isExcluded(m))
         .map((m) => {
           const p = m.pricing || {};
           const free = /:free$/i.test(m.id) || (String(p.prompt) === '0' && String(p.completion) === '0');
@@ -173,11 +177,12 @@
             out: top.max_completion_tokens,
             tools: Array.isArray(m.supported_parameters) ? m.supported_parameters.includes('tools') : undefined,
             sees: Array.isArray(ins) ? ins.includes('image') : undefined,
+            imageGen: !!m.pictures,
             free,
           });
         })
         .filter((m) => m.free || canPay)
-        .sort((a, b) => (b.free ? 1 : 0) - (a.free ? 1 : 0) || byName(a, b));
+        .sort((a, b) => (a.imageGen ? 1 : 0) - (b.imageGen ? 1 : 0) || (b.free ? 1 : 0) - (a.free ? 1 : 0) || byName(a, b));
       list.note = canPay ? 'paid models included — this key has credit'
         : apiKey ? 'free models only — this key has no credit for paid ones'
           : 'free models only — add a key to see paid ones';
@@ -198,11 +203,18 @@
     // models are left out, since this app could not use them.
     async function fetchOpenAIModels(apiKey) {
       const j = await getJson('OpenAI', 'https://api.openai.com/v1/models', { Authorization: `Bearer ${apiKey}` });
-      return (j.data || [])
+      const newest = (a, b) => (b.created || 0) - (a.created || 0) || String(a.id).localeCompare(String(b.id));
+      const chat = (j.data || [])
         .filter((m) => m && typeof m.id === 'string' && /^(gpt-|o\d|chatgpt-)/i.test(m.id))
         .filter((m) => !NOT_CHAT.test(m.id) && !/instruct|audio|transcribe|search|image|codex|computer-use|deep-research|(^|-)pro(-|$)/i.test(m.id))
-        .sort((a, b) => (b.created || 0) - (a.created || 0) || String(a.id).localeCompare(String(b.id)))
+        .sort(newest)
         .map((m) => entry('openai', m.id, prettify(m.id), { tools: true }));
+      // The picture models, last: the GPT ones also change a picture they are given (js/picture-make.js).
+      const pictures = (j.data || [])
+        .filter((m) => m && typeof m.id === 'string' && /^(?:gpt-image-[\w.-]+|dall-e-3)$/i.test(m.id))
+        .sort(newest)
+        .map((m) => entry('openai', m.id, prettify(m.id), { imageGen: true, sees: /^gpt-image/i.test(m.id) }));
+      return [...chat, ...pictures];
     }
 
     // Newest first, as Anthropic lists them. Each model says how much it reads
