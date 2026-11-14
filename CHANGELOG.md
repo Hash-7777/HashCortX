@@ -38,6 +38,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **While a picture is made, the reply says so in plain words.** It named
+  one provider's picture model whichever model was making it. It now says
+  it is making the picture.
+
 - **The folded Thought line above a reply is a quiet line with a drawn
   chevron.** A rule stood beside the word Thought even when it was
   folded, and its mark was a typed triangle. The rule now sits beside the

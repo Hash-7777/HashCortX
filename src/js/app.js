@@ -4910,7 +4910,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   function showImageGenLoading() {
     const last = msgs.querySelector(".msg.assistant:last-of-type .bubble");
     if (last) {
-      last.innerHTML = `<div class="gen-img-loading"><div class="spinner"></div>Generating image with Nano Banana…</div>`;
+      last.innerHTML = `<div class="gen-img-loading"><div class="spinner"></div>Making the picture…</div>`;
       HCFollow.keep(msgs);
     }
   }

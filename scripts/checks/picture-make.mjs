@@ -113,6 +113,7 @@ console.log('\nThe app sends what this builds:');
   ok('a form goes without a JSON type, so the browser names its own', /if \(req\.form\) \{[^\n]*\n\s*delete headers\["Content-Type"\];/.test(app));
   ok('Google\'s key goes in its own header', /provider === "gemini" \? \{ "x-goog-api-key": key \}/.test(app));
   ok('what was left out is said beside the answer', /\[text, req\.note\]\.filter\(Boolean\)/.test(app));
+  ok('while it is made, the reply says so in words that fit every provider, naming no product', /<div class="spinner"><\/div>Making the picture…<\/div>/.test(app) && !/Nano Banana/.test(app + readFileSync(join(root, 'src', 'css', 'main.css'), 'utf8')));
 }
 
 console.log('\nA picture model is offered only where a picture can be made:');

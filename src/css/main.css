@@ -937,7 +937,7 @@
   }
   .bubble .markdown-body tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
   .bubble img { max-width: 300px; border-radius: var(--radius-md); display: block; margin-top: 10px; border: 1px solid var(--line-strong); }
-  /* Generated image wrapper (Nano Banana / image-gen models) */
+  /* A picture a picture model made (js/picture-make.js) */
   .gen-img-wrap { position: relative; display: inline-block; margin-top: 12px; }
   .gen-img-wrap img { max-width: 520px; width: 100%; border-radius: var(--radius-md); display: block; border: 1px solid var(--line-strong); box-shadow: 0 4px 24px rgba(0,0,0,.35); }
   .gen-img-dl, .gen-img-copy {
