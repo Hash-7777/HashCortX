@@ -26,6 +26,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder runs a program once when the model names it twice.** A
+  model that gave the program again as the first of its arguments, such
+  as python3 then python3 -c, ran it on a file of that name and failed.
+  The repeated name is dropped when other arguments follow it.
+
 - **A chat that moves to another model answers first and says so after.**
   When the chosen model could not answer, a note about the move was
   written into the reply itself, and when every model failed it was all

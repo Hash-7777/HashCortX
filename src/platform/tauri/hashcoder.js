@@ -246,6 +246,9 @@
         }
         [command, ...args] = [...words, ...given];
       }
+      // A model that writes the program again as the first of several arguments,
+      // "python3" then ["python3", "-c", ...], ran it on a file of that name.
+      if (Array.isArray(args) && args.length > 1 && String(args[0]).trim() === String(command).trim()) args = args.slice(1);
       // PowerShell runs with no profile and nothing to wait for, and the question shows it (js/code/permissions.js quietPowerShell).
       args = window.HCCodePermissions?.quietPowerShell?.(command, args) || args;
       // A command that would open, serve or take a picture of what was made is not run, and nothing is asked (js/code/by-code.js).

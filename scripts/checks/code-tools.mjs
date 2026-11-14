@@ -305,6 +305,10 @@ console.log('\nWhere a command runs:');
   ok('a program written with a flag, its other arguments given apart, is split and the flag goes first', sent[5].command === 'mkdir' && JSON.stringify(sent[5].args) === '["-p","/work/factory eyes"]', JSON.stringify(sent[5]));
   await HC.code.shellRun('/Applications/My Tool/bin/tool', ['--version']);
   ok('...while a program named by a path that holds a space is left whole', sent[6].command === '/Applications/My Tool/bin/tool' && JSON.stringify(sent[6].args) === '["--version"]', JSON.stringify(sent[6]));
+  await HC.code.shellRun('python3', ['python3', '-c', 'print(1)']);
+  ok('a program written again as the first of its arguments runs once, not on a file of its own name', sent[7].command === 'python3' && JSON.stringify(sent[7].args) === '["-c","print(1)"]', JSON.stringify(sent[7]));
+  await HC.code.shellRun('echo', ['echo']);
+  ok('...while a lone argument that happens to be its name is kept', JSON.stringify(sent[8].args) === '["echo"]', JSON.stringify(sent[8]));
   sent.splice(5);
   // With js/code/pipe.js loaded, as in the app: a line whose pipes only narrow the output runs its first program.
   vm.runInContext(src('js', 'code', 'pipe.js'), sandbox, { filename: 'pipe.js' });
