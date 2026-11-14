@@ -8,8 +8,9 @@
 // history it could have read. Its conversation is now fitted to the model:
 //
 //   · the budget is the model's own window, less room for its tool steps
-//     and its answer (js/model-limits.js JOB_ROOM), never more than half of
-//     it, so a small window keeps half for the conversation;
+//     and its answer (js/model-limits.js JOB_ROOM), or for its answer alone
+//     when it has no tools, never more than half of it, so a small window
+//     keeps half for the conversation;
 //   · the oldest messages go first; the instructions and the latest
 //     exchanges are always kept, and a request that still does not fit is
 //     refused in words where it is sent (js/local-context.js);
@@ -26,12 +27,14 @@
   /** The latest messages, after the instructions, that are always kept. */
   const KEEP_LAST = 4;
   const ROOM = { work: 4096, answer: 1024 };
+  /** The room an agent with no tools keeps, for its answer alone: what js/local-context.js keeps for a reply. */
+  const ANSWER_ROOM = 2048;
 
-  /** The tokens a conversation may take in a window of `size`. */
-  function budgetFor(size) {
+  /** The tokens a conversation may take in a window of `size`; an agent with no tools keeps room for its answer alone. */
+  function budgetFor(size, { tools = true } = {}) {
     const w = typeof size === 'number' && Number.isFinite(size) && size > 0 ? size : UNKNOWN;
     const job = (window.HCModelLimits && window.HCModelLimits.JOB_ROOM) || ROOM;
-    return w - Math.min(job.work + job.answer, Math.floor(w / 2));
+    return w - Math.min(tools ? job.work + job.answer : ANSWER_ROOM, Math.floor(w / 2));
   }
 
   /** A count of a conversation's tokens on the safe side, for when none is handed in. */
@@ -41,11 +44,12 @@
 
   /**
    * Fit `messages` in place to the budget of `window`, counting with
-   * `tokensOf` (js/local-context.js). Returns { budget, dropped }.
+   * `tokensOf` (js/local-context.js), for an agent with `tools` or none.
+   * Returns { budget, dropped }.
    */
-  function fit(messages, { window: size, tokensOf } = {}) {
+  function fit(messages, { window: size, tokensOf, tools = true } = {}) {
     const count = typeof tokensOf === 'function' ? tokensOf : roughly;
-    const budget = budgetFor(size);
+    const budget = budgetFor(size, { tools });
     let dropped = 0;
     while (count(messages) > budget && messages.filter((m) => m && m.role !== 'system').length > KEEP_LAST) {
       messages.splice(messages.findIndex((m) => m && m.role !== 'system'), 1);
@@ -59,5 +63,5 @@
     return { budget, dropped };
   }
 
-  window.HCChatTrim = { UNKNOWN, KEEP_LAST, budgetFor, fit };
+  window.HCChatTrim = { UNKNOWN, KEEP_LAST, ANSWER_ROOM, budgetFor, fit };
 })();

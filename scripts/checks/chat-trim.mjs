@@ -41,6 +41,9 @@ console.log('\nThe budget, from the model\'s own window:');
   ok('a window of 32,768 leaves room for the tool steps and the answer', b(32768) === 32768 - 4096 - 1024, String(b(32768)));
   ok('...as does one of 16,384', b(16384) === 16384 - 5120);
   ok('a small window keeps at least half for the conversation', b(4096) === 2048 && b(8192) === 4096, `${b(4096)} ${b(8192)}`);
+  const bt = (w) => (typeof T.budgetFor === 'function' ? T.budgetFor(w, { tools: false }) : null);
+  ok('an agent with no tools needs no room for tool steps: only its answer\'s', bt(8192) === 8192 - 2048 && bt(32768) === 32768 - 2048, `${bt(8192)} ${bt(32768)}`);
+  ok('...still keeping at least half of a small window', bt(4096) === 2048);
   ok('a window not known is taken as the smallest a model is given', b(undefined) === b(4096) && b(0) === b(4096) && b(-5) === b(4096));
 }
 
@@ -83,6 +86,10 @@ console.log('\nFitted, oldest first:');
     T.fit(none, { window: 4096, tokensOf: L.tokensOf });
     ok('with no instructions to hold the line, it is given its own at the start', none[0].role === 'system' && /of this conversation (?:is|are) not shown here/.test(none[0].content));
 
+    const plain = talk(12, 3000), withTools = talk(12, 3000);
+    const rPlain = T.fit(plain, { window: 8192, tokensOf: L.tokensOf, tools: false });
+    const rTools = T.fit(withTools, { window: 8192, tokensOf: L.tokensOf });
+    ok('the same conversation, for an agent with no tools, keeps more', rPlain.dropped < rTools.dropped && rPlain.budget === 6144 && rTools.budget === 4096, `${rPlain.dropped} vs ${rTools.dropped}`);
     const counted = talk(12, 3000);
     const rDefault = T.fit(counted, { window: 8192 });
     ok('with no count handed in, it counts on the safe side itself', rDefault.dropped >= r.dropped, `${rDefault.dropped}`);
@@ -93,7 +100,7 @@ console.log('\nThe chat (app.js):');
 {
   const app = src('js', 'app.js');
   ok('the fixed trim is gone', !/trimBaseToContextBudget/.test(app) && !/const BUDGET = 8000;/.test(app));
-  ok('an agent not on the shared loop is fitted to its model\'s window: this computer\'s model by what it says of itself, up to the ceiling', /window\.HCChatTrim\.fit\(baseMessages, \{ window: modelEl\.value\.startsWith\("cloud:"\) \? window\.HCModelLimits\?\.forContext\?\.\(modelEl\.value\)\?\.window : Math\.min\(\(await HCLocalContext\.infoOf\(safeHost\(\), modelEl\.value\)\)\.max, HCLocalContext\.CEILING\), tokensOf: HCLocalContext\.tokensOf \}\);/.test(app));
+  ok('an agent not on the shared loop is fitted to its model\'s window: this computer\'s model by what it says of itself, up to the ceiling', /window\.HCChatTrim\.fit\(baseMessages, \{ window: modelEl\.value\.startsWith\("cloud:"\) \? window\.HCModelLimits\?\.forContext\?\.\(modelEl\.value\)\?\.window : Math\.min\(\(await HCLocalContext\.infoOf\(safeHost\(\), modelEl\.value\)\)\.max, HCLocalContext\.CEILING\), tokensOf: HCLocalContext\.tokensOf, tools: tools\.length > 0 \}\);/.test(app));
   ok('...before its steps are taken', app.indexOf('window.HCChatTrim.fit(baseMessages') > 0 && app.indexOf('window.HCChatTrim.fit(baseMessages') < app.indexOf('if (localSteps) return runLocalAgentSteps('));
   const boot = src('boot.js');
   ok('trim.js is loaded after what it counts with, and before app.js', boot.indexOf('/js/chat/trim.js') > boot.indexOf('/js/local-context.js') && boot.indexOf('/js/chat/trim.js') > boot.indexOf('/js/model-limits.js') && boot.indexOf('/js/chat/trim.js') < boot.indexOf('/js/app.js'));
