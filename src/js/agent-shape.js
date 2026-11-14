@@ -432,14 +432,20 @@
   /**
    * Whether a reply that shows Python, when nothing was run, speaks as if it
    * had been: a file it says it saved, code that writes one, or a result
-   * stated under code that prints it — or any code that prints, when the
-   * person asked for it to be run. Such code is run, and the model answers
-   * again from what really happened; code merely shown is left alone.
+   * stated under code that prints it, words saying it was run ("I ran it",
+   * "we have executed the code") or, for code that prints, that it printed — or any code
+   * that prints, when the person asked for it to be run. Such code is run, and
+   * the model answers again from what really happened; code merely shown is
+   * left alone, and so is what code will print, said as what it does.
    */
+  const SAID_RUN = /\b(?:(?:I|we)(?:'ve|\s+have)?\s+(?:just\s+|also\s+)?(?:ran|run|executed|tested)\s+(?:it|this|that|the\s+(?:code|script|function|program|snippet)))\b/i;
+  const SAID_PRINTED = /\b(?:it|this|that|the\s+(?:code|script|program|function))\s+(?:printed|produced)\b/i;
   function claimsItRan(text, code, asked = '') {
     const t = String(text || '');
     const c = String(code || '');
     if (/\/output\//.test(c)) return true;
+    const prose = window.HCFences.splitFences(t).filter((p) => p.type === 'text').map((p) => p.text).join('\n');
+    if (SAID_RUN.test(prose) || (/\bprint\s*\(/.test(c) && SAID_PRINTED.test(prose))) return true;
     if (/\bprint\s*\(/.test(c) && /\b(?:run|execute)\b[^.\n]{0,30}\b(?:it|this|code|python)\b|\bin python\b/i.test(String(asked))) return true;
     if (/\b(downloaded|saved|created|generated|exported)\b/i.test(t) && /\/output\//.test(t)) return true;
     const after = window.HCFences.splitFences(t).filter((p) => p.type === 'text').pop();

@@ -94,6 +94,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **An answer that says it ran its Python, when it did not, is caught on
+  more wordings.** "I ran it", "we have executed the code", and, for code
+  that prints, "it printed …" now count, beside a result stated under the
+  code; the code is run and the answer written again from what it printed.
+  What code will print, said as what it does ("this prints …"), is left
+  alone. This holds on every chat agent.
+
 - **A chat's title names what it is about.** Taken from the first message,
   it leaves out the asking words at the start ("can you", "tell me about",
   "what is"), names a link by its site rather than its whole address, drops
