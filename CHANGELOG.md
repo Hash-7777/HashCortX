@@ -53,6 +53,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A long HashCoder run's signal stays readable.** On a run of many
+  phases the phase names above the line no longer run into each other: a
+  name that would gives way, and where they crowd the names shown are
+  different phases, each still said when you point at it. The tip that
+  says what happened at a point is held inside the band by its own width,
+  so a long one is no longer cut at the right edge.
+
 - **While a picture is made, the reply says so in plain words.** It named
   one provider's picture model whichever model was making it. It now says
   it is making the picture.

@@ -452,7 +452,7 @@ body.coder-mode #app { display: none; }
 #coder-mode-wrap .cdr-signal-mark svg { width: 12px; height: 12px; stroke-width: 1.5; }
 .cdr-signal-mark.is-failed { color: var(--danger); }
 .cdr-signal-hair { position: absolute; top: 12px; height: 44px; width: 0; border-left: 1px dashed var(--cdr-text-dim); opacity: 0; pointer-events: none; }
-.cdr-signal-tip { position: absolute; top: 58px; transform: translateX(-50%); z-index: 3; padding: 3px 8px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-xs); background: var(--surface-2); font: 11px var(--sans); color: var(--cdr-text); white-space: nowrap; opacity: 0; pointer-events: none; }
+.cdr-signal-tip { position: absolute; top: 58px; transform: translateX(-50%); z-index: 3; padding: 3px 8px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-xs); background: var(--surface-2); font: 11px var(--sans); color: var(--cdr-text); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; opacity: 0; pointer-events: none; }
 .cdr-signal-band:hover .cdr-signal-hair, .cdr-signal-band:hover .cdr-signal-tip { opacity: 1; }
 .cdr-phase--lit .cdr-phase-h { background: var(--surface-raised); }
 /* The brief (js/run-view.js brief): each ask of the request with its state, in view while the reply scrolls. */

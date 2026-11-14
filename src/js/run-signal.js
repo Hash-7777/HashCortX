@@ -9,8 +9,9 @@
 //     sines summed for Reading, sharper odd harmonics for Changing, a steady
 //     beat for Checking, slow and calm for Reviewing;
 //   · each as wide as the time it took (by the square root, so a long one
-//     cannot swallow the rest, and none narrower than its name), and as tall
-//     as how much it did; the stretches blend into one another;
+//     cannot swallow the rest), and as tall as how much it did; the
+//     stretches blend into one another, and a name that would run into the
+//     next one gives way, still said by the tip;
 //   · a mark where the app checked in, where you added a message, and where
 //     a step failed;
 //   · while the run goes on, a "now" cursor, and after it the newest
@@ -22,7 +23,7 @@
 // frame when the record changes, never frame by frame, and only in a reply
 // whose run is going on, from two phases on.
 //
-// SHAPES, widths, ampOf, line and whatAt are pure; draw draws.
+// SHAPES, widths, ampOf, line, whatAt and tagsShown are pure; draw draws.
 // Published as window.HCRunSignal. Checked by scripts/checks/run-signal.mjs.
 // ==============================================================
 
@@ -114,6 +115,33 @@
     return { text: mark ? mark.what : String((info && info[i] && info[i].what) || ''), index: mark ? mark.seg : i };
   }
 
+  /** A name's width on the band: nine-pixel mono capitals with their spacing, and the tag's own room. */
+  const TAG_CHAR = 6.3, TAG_PAD = 11;
+  const tagWidth = (name) => String(name || '').length * TAG_CHAR + TAG_PAD;
+
+  /**
+   * Which stretches show their name: those whose name fits before the next
+   * shown one begins and inside the band, from the left; where they crowd, a
+   * name the last shown one already said gives way. A live run's newest
+   * stretch always shows its own, and gives way to nothing. A name not shown
+   * is still said by the tip and in the band's label.
+   */
+  function tagsShown(starts, names, W, { live = false } = {}) {
+    const n = Math.min((starts || []).length, (names || []).length);
+    const wide = Array.from({ length: n }, (_, i) => tagWidth(names[i]));
+    const last = n - 1, shown = [];
+    let edge = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const x = starts[i], end = x + wide[i];
+      if (x < edge || end > W + 0.5) continue;
+      if (shown.length && names[shown[shown.length - 1]] === names[i] && i < last && starts[i + 1] < end) continue;   // on a crowded band a name just shown gives way to the one after it
+      if (live && i < last && end > starts[last]) continue;   // room kept for the newest one
+      shown.push(i); edge = end;
+    }
+    if (live && n && !shown.includes(last)) shown.push(last);
+    return shown;
+  }
+
   // ── Drawing ────────────────────────────────────────────────────────────
 
   const NS = 'http://www.w3.org/2000/svg';
@@ -144,7 +172,8 @@
       area.appendChild(head);
       area.appendChild(span('cdr-signal-now', L.H));
     } else area.appendChild(span('cdr-signal-end', L.H - 3));
-    list.forEach((s, i) => { const t = span(`cdr-signal-tag${live && i === list.length - 1 ? ' is-now' : ''}`, L.starts[i]); t.textContent = s.name || s.phase; area.appendChild(t); });
+    const names = list.map((s) => s.name || s.phase);
+    tagsShown(L.starts, names, W, { live }).forEach((i) => { const t = span(`cdr-signal-tag${live && i === list.length - 1 ? ' is-now' : ''}`, L.starts[i]); t.textContent = names[i]; area.appendChild(t); });   // names that would run into each other give way (tagsShown)
     for (const m of L.marks) {
       const e = span(`cdr-signal-mark is-${m.kind}`, m.x);
       e.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${MARKS[m.kind] || ''}</svg>`;
@@ -181,7 +210,7 @@
         const at = whatAt(L, band.hcList, x);
         const hair = area.querySelector('.cdr-signal-hair'), tip = area.querySelector('.cdr-signal-tip');
         if (hair) hair.style.transform = `translateX(${x.toFixed(1)}px)`;
-        if (tip) { tip.style.left = `${Math.max(90, Math.min(W - 90, x)).toFixed(1)}px`; tip.textContent = at.text; }
+        if (tip) { tip.textContent = at.text; const half = Math.min(W, tip.offsetWidth || 180) / 2; tip.style.left = `${Math.max(half, Math.min(W - half, x)).toFixed(1)}px`; }   // held inside the band by its own width, so a long tip is never cut at the edge
         light(band, at.index);
       });
       area.addEventListener('mouseleave', () => light(band, -1));
@@ -196,5 +225,5 @@
     return band;
   }
 
-  window.HCRunSignal = { SHAPES, MID, HGT, HEAD, MIN, widths, ampOf, line, whatAt, draw };
+  window.HCRunSignal = { SHAPES, MID, HGT, HEAD, MIN, widths, ampOf, line, whatAt, tagWidth, tagsShown, draw };
 })();

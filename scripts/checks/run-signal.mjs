@@ -60,6 +60,27 @@ ok('a mark where the app checked in, you added a message, or a step failed, plac
 ok('pointing at a stretch says its phase and what it did; near a mark, what the mark is', G.whatAt(L2, [{ what: 'Reading · 4 files' }, { what: 'Changing · 2 edits' }], 10).text === 'Reading · 4 files' && G.whatAt(L2, [{ what: 'a' }, { what: 'b' }], L2.marks[0].x + 3).text === 'The app checked: 1 ask open' && G.whatAt(L2, [{ what: 'a' }, { what: 'b' }], 590).index === 1);
 ok('nothing to draw, nothing drawn', G.line([], 600, {}).d === '' && G.line(null, 600, {}).d === '');
 
+console.log('\nNames on a crowded band:');
+{
+  const PH = ['reading', 'finding', 'reading', 'finding', 'reading', 'changing', 'reading', 'changing', 'reading', 'changing', 'reading', 'changing', 'reading', 'changing', 'reading', 'changing', 'reviewing'];
+  const crowd = PH.map((phase) => ({ phase, ms: 4000, steps: 2 }));
+  const names = PH.map((p) => p.toUpperCase());
+  const overlaps = (L, shown) => shown.some((i, k) => k > 0 && L.starts[i] < L.starts[shown[k - 1]] + G.tagWidth(names[shown[k - 1]]));
+  const LF = G.line(crowd, 700, { live: false }), shown = G.tagsShown(LF.starts, names, 700);
+  ok('seventeen phases on a narrow band: no shown name runs into the next', shown.length > 1 && !overlaps(LF, shown), json(shown));
+  ok('...and none runs past the band\'s end', shown.every((i) => LF.starts[i] + G.tagWidth(names[i]) <= 700.5));
+  ok('...the first phase keeps its name', shown[0] === 0);
+  ok('...and where they crowd, the names shown are not all the same one: each kind of phase is named', ['READING', 'FINDING', 'CHANGING'].every((nm) => shown.some((i) => names[i] === nm)), json(shown.map((i) => names[i])));
+  const LL = G.line(crowd, 700, { live: true }), live = G.tagsShown(LL.starts, names, 700, { live: true });
+  ok('a live run always names its newest phase, and nothing before it runs into that name', live.includes(PH.length - 1) && !overlaps(LL, live), json(live));
+  const roomy = [{ phase: 'reading', ms: 3000, steps: 3 }, { phase: 'changing', ms: 3000, steps: 3 }, { phase: 'checking', ms: 3000, steps: 3 }];
+  const LR = G.line(roomy, 900, { live: false });
+  ok('with room, every phase shows its name', json(G.tagsShown(LR.starts, ['READING', 'CHANGING', 'CHECKING'], 900)) === '[0,1,2]');
+  const sig0 = src('js', 'run-signal.js');
+  ok('the band draws only the names tagsShown gives', /tagsShown\(L\.starts, names, W, \{ live \}\)\.forEach/.test(sig0) && !/list\.forEach\(\(s, i\) => \{ const t = span\(`cdr-signal-tag/.test(sig0));
+  ok('the tip is held inside the band by its own measured width, so a long one is never cut at the edge', /const half = Math\.min\(W, tip\.offsetWidth \|\| 180\) \/ 2;/.test(sig0) && !/Math\.max\(90, Math\.min\(W - 90, x\)\)/.test(sig0));
+}
+
 console.log('\nWhere it is drawn:');
 const sig = src('js', 'run-signal.js'), view = src('js', 'run-view.js'), steps = src('js', 'code', 'steps.js'), css = src('modes', 'code', 'mode.css');
 ok('the run view hands it each phase, as it is now, at each step, each ended step, each message you add, and when the run ends', (view.match(/signal\(contentEl\);/g) || []).length >= 4 && /window\.HCRunView\?\.note\(contentEl, 'added', /.test(steps));
