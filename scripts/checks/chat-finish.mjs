@@ -153,6 +153,15 @@ await (async () => {
   ok('a source too short to look for is left alone', (await g(looked('x', wiki)).finish[3].run(card('NHS'))) === null);
 })();
 
+console.log('\nThe same list, for a view whose run had no finishing checks:');
+{
+  const F = sandbox.HCChatFinish;
+  const msgs = [{ role: 'user', content: 'Plan a visit to the tea rooms.' }, { role: 'tool', name: 'web_search', content: 'The tea rooms open Tuesday to Sunday.' }];
+  const list = (reply) => (typeof F.unsourcedIn === 'function' ? json(F.unsourcedIn(reply, msgs).map((x) => x.shown)) : null);
+  ok('a detail nothing given or read says, and a paper nothing found, as the finishing check lists them', list('Call 020 7946 0555 before you go, as PMID 31234567 found.') === json(['020 7946 0555', 'PMID 31234567']), list('Call 020 7946 0555 before you go, as PMID 31234567 found.'));
+  ok('...and nothing when all of it was given or read', list('They open Tuesday to Sunday.') === '[]');
+}
+
 console.log('\nA paper it cites that nothing found:');
 await (async () => {
   if (typeof F.checks !== 'function') return;

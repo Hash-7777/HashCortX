@@ -90,6 +90,52 @@ console.log('\nA reply\'s steps, as the chat records them:');
   ok('a reply with no record is left alone', !('view' in none));
 }
 
+console.log('\nWhat is said to check, on a model on this computer and in the cloud:');
+{
+  const VM = sandbox.HCChatViewModel;
+  const ASK = 'When was the Eiffel Tower completed, and how tall is it?';
+  const WIKI = { results: [{ title: 'Eiffel Tower', snippet: 'The company built the tower from 1887 to 1889. The tower is 330 metres (1,083 ft) tall.', url: 'https://en.wikipedia.org/wiki/Eiffel_Tower' }] };
+  const run = (answer, { result = WIKI, before = [], facts } = {}) => {
+    const a = { role: 'assistant', view: VM.start(ASK, 0) };
+    V.note?.(a, 'tool_call', 'wikipedia', { query: 'Eiffel Tower' });
+    if (result) V.note?.(a, 'tool_result', 'wikipedia', result);
+    if (facts) a.viewFacts = facts;
+    a.content = answer;
+    V.finish?.(a, [...before, { role: 'user', content: ASK }, a]);
+    return a;
+  };
+  const wrong = run('The Eiffel Tower was completed in 1889. It is 324 meters (1,063 feet) tall.');
+  ok('with no finishing checks of its own, a figure nothing it read gives is listed to check', json(wrong.view.caution) === json(['324 meters', '1,063 feet']), json(wrong.view.caution));
+  ok('...its sentence marked, the other backed', json(wrong.view.chips.map((c) => c.n)) === '[1,"?"]', json(wrong.view.chips));
+  ok('...and the answer said to be checked against what it read', /checked against what it read/.test(V.sayText(wrong.view)));
+  ok('...what was read is not kept with the reply', !('_read' in wrong));
+  const phone = run('It was completed in 1889; call 020 7946 0555 to visit.');
+  ok('...and a detail of the kinds the cloud checks hold (a phone number) is listed too', phone.view.caution.includes('020 7946 0555'), json(phone.view.caution));
+  ok('an answer whose figures are all in what it read has nothing to check', run('It was completed in 1889 and is 330 metres (1,083 ft) tall.').view.caution.length === 0);
+  ok('a figure the person gave, earlier in the conversation, is given', run('Your guide is right: it is 324 metres to the tip.', { before: [{ role: 'user', content: 'My guide says it is 324 metres.' }] }).view.caution.length === 0);
+  ok('...but not an app note in the conversation', run('It is 324 metres.', { before: [{ role: 'user', note: true, content: 'Note: 324 metres.' }] }).view.caution.length === 1);
+  const none = run('It is 324 metres tall.', { result: null });
+  ok('nothing read: nothing is held against the answer, and it is not said to be checked', none.view.caution.length === 0 && !/checked/.test(V.sayText(none.view)));
+  const failed = run('It was completed in 1889 and is 324 metres tall.');
+  {
+    const a = { role: 'assistant', view: VM.start(ASK, 0) };
+    V.note?.(a, 'tool_call', 'wikipedia', { query: 'Eiffel Tower' });
+    V.note?.(a, 'tool_result', 'wikipedia', WIKI);
+    V.note?.(a, 'tool_call', 'fetch_url', { url: 'https://example.org/tower' });
+    V.note?.(a, 'tool_result', 'fetch_url', { error: 'Could not read the page about the 324 metres tower.' });
+    a.content = 'It was completed in 1889 and is 324 metres tall.';
+    V.finish?.(a, [{ role: 'user', content: ASK }, a]);
+    ok('an error from a tool is not something read', json(a.view.caution) === json(['324 metres']) && json(failed.view.caution) === json(['324 metres']), json(a.view.caution));
+  }
+  const APP_NOTE = (sandbox.HCCodeVerify && sandbox.HCCodeVerify.APP_NOTE) || 'Note from HashCortX, not from the person:';
+  ok('...nor a message of the app\'s own, told by its words', run('It is 324 metres.', { before: [{ role: 'user', content: `${APP_NOTE} the tower is 324 metres.` }] }).view.caution.length === 1);
+  ok('a detail of those kinds that what it read gives is not listed', run('It was completed in 1889; call 020 7946 0555 to visit.', { result: { results: [{ title: 'Eiffel Tower', snippet: 'Completed in 1889. Visits: 020 7946 0555.', url: 'https://en.wikipedia.org/wiki/Eiffel_Tower' }] } }).view.caution.length === 0);
+  const cloud = run('It was completed in 1889. It is 324 meters tall; call 020 7946 0555.', { facts: { unsourced: [{ shown: '020 7946 0555' }], checked: true } });
+  ok('in the cloud, what the finishing checks found is kept, and the figures join it once', json(cloud.view.caution) === json(['020 7946 0555', '324 meters']), json(cloud.view.caution));
+  const kept = run('It was completed in 1889. It is 324 meters tall; call 020 7946 0555.', { facts: { unsourced: [], checked: true } });
+  ok('...and what they did not find is not looked for again here', json(kept.view.caution) === json(['324 meters']), json(kept.view.caution));
+}
+
 console.log('\nWhere the chat uses it (app.js):');
 {
   const app = src('js', 'app.js');
@@ -97,7 +143,7 @@ console.log('\nWhere the chat uses it (app.js):');
   ok('every step the chat records reaches it', /assistant\.runEvents\.push\(\{ ts: Date\.now\(\), type, label: String\(label \|\| ""\), data \}\); window\.HCChatView\?\.note\(assistant, type, label, data\);/.test(app));
   ok('a reply with a view says nothing in its bubble about each step: the view does', /if \(!assistant\.view\) pulse\(label, agentToolNames\(activeAgent\)\.join\(" · "\)\);/.test(app));
   ok('the first word of the answer is writing', /if \(!assistant\.firstTokenAt\) \{ assistant\.firstTokenAt = Date\.now\(\); window\.HCChatView\?\.writing\(assistant\); \}/.test(app));
-  ok('the run done, the record is finished before anything is added under the answer', /window\.HCChatView\?\.finish\(assistant\); window\.HCChatTrim\?\.tell\(assistant\); window\.HCAgentNotice\?\.add\(activeAgent, assistant\);/.test(app));
+  ok('the run done, the record is finished, with the conversation, before anything is added under the answer', /window\.HCChatView\?\.finish\(assistant, state\.messages\); window\.HCChatTrim\?\.tell\(assistant\); window\.HCAgentNotice\?\.add\(activeAgent, assistant\);/.test(app));
   ok('a reply drawn gets its chips, its head and its foot, live or saved', /bubble\.appendChild\(body\); if \(m\.view\) window\.HCChatView\?\.chips\(body, m\.view\);/.test(app) && /wrap\.appendChild\(av\); wrap\.appendChild\(bubble\); window\.HCChatView\?\.mount\(wrap, bubble, m\);\n\s*if \(pendingFoot\)/.test(app));
   ok('the record is kept when the conversation is saved', /view: m\.view \|\| undefined,/.test(app));
 }

@@ -4515,7 +4515,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         recordAgentEvent(assistant, "error", err?.message || String(err || "Agent failed"));
         if (err.name !== "AbortError") showError(err);
       }
-      window.HCChatView?.finish(assistant); window.HCChatTrim?.tell(assistant); window.HCAgentNotice?.add(activeAgent, assistant); finishAgentRun(assistant);   // an agent's notice under its answer, by the app (js/chat/notice.js)
+      window.HCChatView?.finish(assistant, state.messages); window.HCChatTrim?.tell(assistant); window.HCAgentNotice?.add(activeAgent, assistant); finishAgentRun(assistant);   // an agent's notice under its answer, by the app (js/chat/notice.js)
       flushPendingBubbleUpdate();
     } else {
       // ── Plain chat (no agent selected) ────────────────────────────────

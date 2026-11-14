@@ -109,6 +109,13 @@
     return cites.filter((c) => !has(c)).map((c) => ({ path: 'answer.md', kind: 'cite', shown: c.shown }));
   }
 
+  /** The details of an answer nothing given or read says, with the papers it cites that nothing found: the facts check's list. */
+  function unsourcedIn(reply, messages) {
+    const Fa = window.HCCodeFacts;
+    const seen = Fa ? Fa.check({ files: [{ path: 'answer.md', text: String(reply || '') }], messages }) : { unsourced: [] };
+    return [...seen.unsourced, ...unreadCites(reply, messages)];   // a paper cited that nothing found is one more
+  }
+
   // ── A grade with nothing searched behind it ────────────────────────────
   //
   // An agent that grades, as a drug-interaction check grades each pair, is
@@ -170,8 +177,7 @@
 
     const factsLook = async (reply) => {
       const looked = !knowledge || !V || !V.searchedSince || V.searchedSince(messages);
-      const seen = Fa && looked ? Fa.check({ files: [{ path: 'answer.md', text: String(reply || '') }], messages }) : { unsourced: [] };
-      const unsourced = [...seen.unsourced, ...unreadCites(reply, messages)];   // a paper cited that nothing found is one more
+      const unsourced = looked ? unsourcedIn(reply, messages) : unreadCites(reply, messages);
       found = unsourced.length ? { unsourced } : null;   // square brackets in a chat answer are links, not unfinished text
       if (!found || (s.facts || 0) >= 1) return null;
       return { kind: 'facts', step: FACTS_STEP,
@@ -208,5 +214,5 @@
     return lines.join(' ');
   }
 
-  window.HCChatFinish = { ASKS_STEP, FACTS_STEP, GRADED_STEP, covers, citesIn, unreadCites, gradesOf, checks, leftLine };
+  window.HCChatFinish = { ASKS_STEP, FACTS_STEP, GRADED_STEP, covers, citesIn, unreadCites, unsourcedIn, gradesOf, checks, leftLine };
 })();

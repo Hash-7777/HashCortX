@@ -140,6 +140,49 @@
     return out;
   }
 
+  // A figure: an amount, a measurement, a share, a date's number, a time.
+  // A count under this is not one: "3 floors" reads the same as "three".
+  const SMALL = 13;
+  const MOST_FIGURES = 6;
+  const NUMBER = /(?<![\p{L}\p{N}.,:/_])(?<!\p{L}-)([$£€¥₹])?(\d{1,3}(?:,\d{3})+(?!\d)|\d+)(\.\d+)?(:\d{2})?(?![\p{N}]|[.,]\d)(\s?%|\s?°\s?[CF]\b|\s?[\p{L}/]+)?/gu;
+  /** A run that may be a phone number: one starting +, ( or 0, or of three groups or more, is (js/code/facts.js holds it whole). */
+  const PHONE = /[+(]?\d[\d().\s-]{5,}\d/g;
+  const UNITS = new Set(['m', 'metre', 'metres', 'meter', 'meters', 'km', 'kilometres', 'kilometers', 'cm', 'mm', 'ft', 'feet', 'foot', 'in', 'inches', 'mi', 'miles', 'mile', 'kg', 'g', 'mg', 'lb', 'lbs', 'pounds', 'tonnes', 'tons', 'l', 'litres', 'liters', 'ml', 'percent', 'per', 'mph', 'km/h', 'kmh', 'hz', 'mhz', 'ghz', 'kb', 'mb', 'gb', 'tb', 'kw', 'mw', 'gw', 'kwh', 'w', 'v', 'mmhg', 'bpm', 'kcal', 'calories', 'seconds', 'minutes', 'hours', 'days', 'weeks', 'months', 'years', 'storeys', 'stories', 'people', 'million', 'billion', 'trillion', 'thousand']);
+  /** Each figure in a text: its value, whatever its thousands are written with, and how it is shown, with its currency and unit. */
+  function figuresIn(text) {
+    const out = [];
+    for (const f of String(text || '').matchAll(NUMBER)) {
+      const [, cur, whole, dec, time, tail] = f;
+      const n = whole.replace(/,/g, '');
+      const frac = dec ? dec.replace(/0+$/, '').replace(/^\.$/, '') : '';
+      const unit = tail && (/%|°/.test(tail) || UNITS.has(tail.trim().toLowerCase())) ? tail : '';
+      const plain = !cur && !dec && !time && !/%/.test(unit);
+      if (plain && Number(n) < SMALL) continue;
+      out.push({ value: `${Number(n)}${frac}${time || ''}`, shown: `${cur || ''}${whole}${dec || ''}${time || ''}${unit}`.trim() });
+    }
+    return out;
+  }
+  /**
+   * The figures of an answer that nothing in `evidence` (what the person gave
+   * and the agent read) holds, as shown: outside code, links and paper
+   * numbers, each once, the first few.
+   */
+  function figuresUnread(answer, evidence) {
+    const H = window.HCFences;
+    const all = String(answer || '');
+    const prose = (H && H.splitFences ? H.splitFences(all).filter((x) => x.type !== 'code').map((x) => x.text).join('\n') : all)
+      .replace(/`[^`\n]*`/g, ' ').replace(/https?:\/\/\S+/g, ' ').replace(PHONE, (p) => (/^[+(0]/.test(p) || (p.match(/\d[\s.-]+(?=\d)/g) || []).length >= 2 ? ' ' : p)).replace(/\b(?:PMID|PMC|doi|arXiv)\s*:?\s*\S+/gi, ' ')
+      .split('\n').map((line) => line.replace(/^\s*(?:[>#*+-]+\s+)?\d+[.)]\s+/, '')).join('\n');
+    const have = new Set(figuresIn(evidence).map((f) => f.value));
+    const out = [];
+    for (const f of figuresIn(prose)) {
+      if (have.has(f.value) || out.some((x) => x.value === f.value)) continue;
+      out.push(f);
+      if (out.length >= MOST_FIGURES) break;
+    }
+    return out.map((f) => f.shown);
+  }
+
   /**
    * The part of a sentence that answers an ask: of its clauses (split at a
    * comma, a semicolon, "and", "but"), the one holding most of the ask's
@@ -192,5 +235,5 @@
     return m;
   }
 
-  window.HCChatViewModel = { start, toolCall, toolResult, check, writing, finish, sentencesOf, glanceOf };
+  window.HCChatViewModel = { start, toolCall, toolResult, check, writing, finish, sentencesOf, glanceOf, figuresUnread };
 })();

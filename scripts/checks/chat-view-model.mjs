@@ -151,5 +151,27 @@ console.log('\nAn answer from what it knows, with nothing read:');
   ok('words inside a code block are not given a chip', fenced.chips.length === 0);
 }
 
+console.log('\nFigures nothing given or read holds:');
+{
+  const U = (answer, evidence) => (typeof V.figuresUnread === 'function' ? json(V.figuresUnread(answer, evidence)) : null);
+  const READ = 'Eiffel Tower. The company built the tower from 1887 to 1889. The tower is 330 metres (1,083 ft) tall.';
+  ok('a measurement nothing read gives is listed, with its unit', U('The Eiffel Tower was completed in 1889. It is 324 meters (1,063 feet) tall.', READ) === json(['324 meters', '1,063 feet']), U('The Eiffel Tower was completed in 1889. It is 324 meters (1,063 feet) tall.', READ));
+  ok('...one read, however its thousands are written, is not', U('It is 330 meters, or 1083 ft, tall.', READ) === '[]', U('It is 330 meters, or 1083 ft, tall.', READ));
+  ok('a figure is looked for whole, not inside a longer number', U('It is 324 m tall.', 'Item 13245 in the list.') === json(['324 m']));
+  ok('a share and a decimal are figures, and match the same figure written out', U('Growth was 4.5% in 2023.', 'growth of 4.50 percent in 2023') === '[]' && U('Growth was 4.7% in 2023.', 'growth of 4.5 percent in 2023') === json(['4.7%']));
+  ok('an amount keeps its currency', U('A ticket costs £35.', 'Tickets are sold at the gate.') === json(['£35']));
+  ok('a time is one figure', U('It opens at 9:30.', 'It opens at 9:30 daily.') === '[]' && U('It opens at 9:30.', 'It opens at 9 daily.') === json(['9:30']));
+  ok('a small count is not a figure, nor a list\'s number', U('It has 3 floors and 2 lifts.\n14. It opened in 1889.', 'It opened in 1889.') === '[]', U('It has 3 floors and 2 lifts.\n14. It opened in 1889.', 'It opened in 1889.'));
+  ok('code, links and paper numbers are not figures here', U('See https://example.org/a/2024/5551 and PMID 31234567, doi 10.5555/x.1977.\n```\nx = 4242\n```\nRun `port 8080`.', '') === '[]', U('See https://example.org/a/2024/5551 and PMID 31234567, doi 10.5555/x.1977.\n```\nx = 4242\n```\nRun `port 8080`.', ''));
+  ok('a number inside a name is not a figure', U('COVID-19 spread and H2O boils; version v2.31 shipped.', '') === '[]', U('COVID-19 spread and H2O boils; version v2.31 shipped.', ''));
+  ok('each figure once, and no more than six', U('It is 324 m. Again, 324 m.', '') === json(['324 m']) && JSON.parse(U('13, 14, 15, 16, 17, 18, 19, 20, 21.', '')).length === 6);
+  ok('a phone number is not figures: the details check holds it whole', U('Call 020 7946 0555 or +44 20 7946 0555, or (020) 7946-0555, or 212-555-0199.', '') === '[]', U('Call 020 7946 0555 or +44 20 7946 0555, or (020) 7946-0555, or 212-555-0199.', ''));
+  ok('...but a span of years is', U('It was built 1887-1889.', '') === json(['1887', '1889']), U('It was built 1887-1889.', ''));
+  ok('a version number is not a figure', U('Install release 2.31.4 now.', '') === '[]', U('Install release 2.31.4 now.', ''));
+  ok('only a unit is shown with its figure, not the word after it', U('Built in 1856 by the board.', '') === json(['1856']));
+  ok('a small amount or share is a figure', U('Entry is £5 and 8% of visitors return.', '') === json(['£5', '8%']), U('Entry is £5 and 8% of visitors return.', ''));
+  ok('nothing to look at, nothing listed', U('', READ) === '[]' && U(null, null) === '[]');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/view-model.js)`);
 process.exit(fail ? 1 : 0);

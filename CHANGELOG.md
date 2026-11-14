@@ -22,6 +22,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   Hovering a mark lights its source. "Show how" opens the steps again. All
   of it is written by the app from what the agent did, never from the
   model's account of itself, and it is kept with the conversation.
+- **A figure in an agent's answer that nothing it read gives is marked.**
+  Once an agent has searched or read something, each amount, measurement,
+  share, date or time in its answer that neither you nor anything it read
+  gives is marked in the answer and listed under it to check before
+  relying on it. A model on this computer now gets the same check of
+  details as a cloud model (phone numbers, addresses, opening hours, papers
+  cited), shown under the answer without sending it back.
 
 - **A message sent while a chat agent works is read at its next step.** On
   a cloud model, what you send while an agent searches or reads waits in

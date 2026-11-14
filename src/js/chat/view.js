@@ -72,6 +72,8 @@
     return rows;
   }
 
+  /** The most of one tool's result kept to look in. */
+  const READ_MOST = 200000;
   const took = (ms) => (Number.isFinite(ms) ? (ms < 60000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.floor(ms / 60000)} m ${Math.round((ms % 60000) / 1000)} s`) : '');
   const thumb = '<svg class="cv-thumb" viewBox="0 0 52 64" aria-hidden="true"><rect x="1" y="1" width="50" height="62" rx="6"/><rect class="cv-thumb-bar" x="1.6" y="1.6" width="48.8" height="10" rx="5"/><path d="M7 6.6h2M11.5 6.6h2M16 6.6h2" class="cv-dots"/><path d="M8 20h28M8 26h36M8 32h22"/><path class="cv-hl" d="M8 38h32M8 44h26"/><path d="M8 50h30M8 56h18"/></svg>';
 
@@ -269,6 +271,7 @@
   /** The chat recorded an event for a reply: its record, and its live head. */
   function note(assistant, type, label, data) {
     if (!assistant || !assistant.view) return;
+    if (type === 'tool_result' && !assistant.view.done && data && typeof data === 'object' && typeof data.error !== 'string') (assistant._read = assistant._read || []).push(textOf(data));
     if (type !== 'start' && !apply(assistant.view, type, label, data)) return;
     const h = liveHead(assistant);
     if (h) update(h, assistant.view, { live: true });
@@ -283,12 +286,44 @@
     if (h) update(h, assistant.view, { live: true });
   }
 
-  /** The run is done: the record finished from the answer and what the checks found (viewFacts). */
-  function finish(assistant) {
-    const VM = window.HCChatViewModel;
+  /** What a tool returned, as text to look in: every word and number in it, held only while the reply is written. */
+  function textOf(data, depth = 0) {
+    if (data == null || depth > 6) return '';
+    if (typeof data === 'string') return data.slice(0, READ_MOST);
+    if (typeof data === 'number') return String(data);
+    if (typeof data !== 'object') return '';
+    return (Array.isArray(data) ? data : Object.values(data)).map((x) => textOf(x, depth + 1)).filter(Boolean).join('\n').slice(0, READ_MOST);
+  }
+
+  /**
+   * The run is done: the record finished from the answer and what is not
+   * confirmed. Once something was searched or read: on a run the finishing
+   * checks saw (viewFacts), what they found; on one they did not (a model on
+   * this computer), the same list made here from what was read and what the
+   * person said in `conversation`; and on both, each figure nothing given or
+   * read holds. What was read is not kept with the reply.
+   */
+  function finish(assistant, conversation) {
+    const VM = window.HCChatViewModel, F = window.HCChatFinish, Vf = window.HCCodeVerify;
     if (!assistant || !assistant.view || !VM || assistant.view.done) return;
     const f = assistant.viewFacts || {};
-    VM.finish(assistant.view, String(assistant.content || ''), { unsourced: f.unsourced || [], checked: !!f.checked, ended: Date.now() });
+    const answer = String(assistant.content || '');
+    const read = (assistant._read || []).join('\n');
+    delete assistant._read;
+    const shown = (u) => String((u && u.shown) || u || '');
+    let unsourced = (f.unsourced || []).map(shown).filter(Boolean);
+    let checked = !!f.checked;
+    if (assistant.view.sources.length && read.trim()) {
+      const given = (Array.isArray(conversation) ? conversation : [])
+        .filter((m) => m && m.role === 'user' && !m.note && typeof m.content === 'string' && !(Vf && Vf.isAppNote && Vf.isAppNote(m.content)))
+        .map((m) => m.content);
+      if (!assistant.viewFacts && F && F.unsourcedIn) {
+        unsourced = F.unsourcedIn(answer, [...given.map((content) => ({ role: 'user', content })), { role: 'tool', name: 'read', content: read }]).map(shown).filter(Boolean);
+        checked = true;
+      }
+      for (const x of VM.figuresUnread(answer, [...given, read].join('\n'))) if (!unsourced.some((u) => u.includes(x))) unsourced.push(x);
+    }
+    VM.finish(assistant.view, answer, { unsourced, checked, ended: Date.now() });
     if (assistant._cvHead) update(assistant._cvHead, assistant.view, { live: false });
   }
 
