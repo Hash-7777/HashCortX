@@ -25,9 +25,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   given while the model is still writing. The request counts toward the
   provider's usage like any other.
 
-- **URL Reader, Researcher and Published Papers Researcher run on
-  HashCoder's agent loop when they use a cloud model.** The first three of
-  the chat's agents to move. The conversation
+- **URL Reader, Researcher, Published Papers Researcher and Deep Research
+  run on HashCoder's agent loop when they use a cloud model.** The first
+  four of the chat's agents to move. A run ends when it stops making
+  progress, within the loop's limits, which leaves room for a brief that
+  needs several searches. The conversation
   each is shown is sized to the model rather than cut to a fixed size, older
   questions folded into a short record instead of dropped; web searches
   run together; a call written slightly wrong is put right; a failed call made

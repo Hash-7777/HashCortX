@@ -46,7 +46,8 @@ console.log('Which agents run on the shared loop:');
   ok('...not on a model on this computer, which keeps its own way of taking steps', R.onLoop?.(url, 'qwen2.5:7b') === false);
   ok('Researcher, on a cloud model, and not on a model on this computer', R.onLoop?.({ id: 'builtin_researcher', tools: ['web_search', 'wikipedia'] }, 'cloud:groq:m') === true && R.onLoop?.({ id: 'builtin_researcher' }, 'qwen2.5:7b') === false);
   ok('Published Papers Researcher, on a cloud model, and not on a model on this computer', R.onLoop?.({ id: 'builtin_papers', tools: ['pubmed', 'fetch_url'] }, 'cloud:groq:m') === true && R.onLoop?.({ id: 'builtin_papers' }, 'qwen2.5:7b') === false);
-  ok('...not the agents not moved yet, nor a lite one', R.onLoop?.({ id: 'builtin_deep_research' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_hash_ai' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_url_reader', lite: true }, 'cloud:groq:m') === false && R.onLoop?.(null, 'cloud:groq:m') === false);
+  ok('Deep Research, on a cloud model, and not on a model on this computer', R.onLoop?.({ id: 'builtin_deep_research', tools: ['web_search', 'pubmed'] }, 'cloud:groq:m') === true && R.onLoop?.({ id: 'builtin_deep_research' }, 'qwen2.5:7b') === false);
+  ok('...not the agents not moved yet, nor a lite one', R.onLoop?.({ id: 'builtin_medical_lexi' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_coder' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_hash_ai' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_url_reader', lite: true }, 'cloud:groq:m') === false && R.onLoop?.(null, 'cloud:groq:m') === false);
 }
 
 let ids = 0;
