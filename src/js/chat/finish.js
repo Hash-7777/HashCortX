@@ -29,6 +29,7 @@
 
   const ASKS_STEP = 'Sent back: parts of the question the answer does not cover';
   const FACTS_STEP = 'Sent back: details nothing given or read says';
+  const GRADED_STEP = 'Sent back: a grade or a source no search gave';
   const asking = (reply) => /\?\s*$/.test(String(reply || '').trim());
 
   /** Words that ask, rather than say what is asked about. */
@@ -48,6 +49,12 @@
     const hits = want.filter((k) => said.some((w) => w.startsWith(k))).length;
     return want.length <= 2 ? hits === want.length : hits >= Math.ceil(want.length * 0.6);
   }
+
+  /** An answer's words outside its code blocks. */
+  const proseOf = (reply) => {
+    const H = window.HCFences;
+    return H && H.splitFences ? H.splitFences(String(reply || '')).filter((p) => p.type !== 'code').map((p) => p.text).join('\n') : String(reply || '');
+  };
 
   // ── A paper cited that nothing found ─────────────────────────────────
   //
@@ -75,8 +82,7 @@
 
   /** The papers an answer names by identifier, outside its code blocks, each once, in order. */
   function citesIn(reply) {
-    const H = window.HCFences;
-    const prose = H && H.splitFences ? H.splitFences(String(reply || '')).filter((p) => p.type !== 'code').map((p) => p.text).join('\n') : String(reply || '');
+    const prose = proseOf(reply);
     const hits = [];
     for (const f of CITE_FORMS) for (const m of prose.matchAll(f.re)) hits.push({ at: m.index, kind: f.kind, value: f.kind === 'doi' ? doiOf(m[1]) : m[1] });
     const seen = new Set();
@@ -103,6 +109,35 @@
     return cites.filter((c) => !has(c)).map((c) => ({ path: 'answer.md', kind: 'cite', shown: c.shown }));
   }
 
+  // ── A grade with nothing searched behind it ────────────────────────────
+  //
+  // An agent that grades, as a drug-interaction check grades each pair, is
+  // told to grade only from a search. A grade given when no search ran since
+  // the request, or a card naming as its source a site no search returned,
+  // reads as checked and is not. Either is sent back once; what is still so
+  // is said under the answer. A pair marked to be checked by hand, with no
+  // grade given, is not a grade.
+  const GRADE = /^[ \t]*(?:[-*][ \t]*)?\**Grade\**:[ \t]*\**[ \t]*[ABCDX]\b/gim;
+  const SOURCE = /^[ \t]*(?:[-*][ \t]*)?\**Sources?\**:[ \t]*(.+)$/gim;
+  /** What a Source line is looked for by: a site's name from an address or a domain, else its first word of four letters or more. */
+  const sourceKey = (line) => {
+    const t = String(line || '').replace(/[*_`[\]()]/g, ' ').trim().toLowerCase();
+    const host = /https?:\/\/(?:www\.)?([^\s/?#]+)/.exec(t) || /\b((?:[a-z0-9-]+\.)+[a-z]{2,})\b/.exec(t);
+    if (host) return host[1].replace(/^www\./, '');
+    return (t.match(/[\p{L}\p{N}]{4,}/u) || [])[0] || '';
+  };
+  /** What an answer's grades rest on: { grades, searched, unread } (sources named that no search returned). */
+  function gradesOf(reply, messages) {
+    const prose = proseOf(reply);
+    const grades = (prose.match(GRADE) || []).length;
+    const V = window.HCCodeVerify;
+    const searched = !!(V && V.searchedSince && V.searchedSince(messages));
+    const found = (Array.isArray(messages) ? messages : []).filter((m) => m && m.role === 'tool').map((m) => String(m.content || '')).join('\n').toLowerCase();
+    const unread = [];
+    if (grades && searched) for (const m of prose.matchAll(SOURCE)) { const k = sourceKey(m[1]); if (k && !found.includes(k) && !unread.includes(k)) unread.push(k); }
+    return { grades, searched, unread };
+  }
+
   /**
    * The finishing checks of one chat run, as the shared loop takes them:
    * { finish, left, wrap }. `messages` the run's conversation (read as it
@@ -110,13 +145,16 @@
    * `request` the person's request with what they added while it worked,
    * `knowledge` true for an agent that may answer from what it knows: its
    * details are held to what it found only once it has searched or read
-   * something; a paper it cites, always.
+   * something; a paper it cites, always. `graded` true for an agent that
+   * grades: each grade is held to a search, and each source it names to what
+   * a search returned.
    */
-  function checks({ messages, sent, request, knowledge = false } = {}) {
+  function checks({ messages, sent, request, knowledge = false, graded = false } = {}) {
     const V = window.HCCodeVerify, A = window.HCCodeAsks, Fa = window.HCCodeFacts;
     const s = sent || {};
     const note = (V && V.APP_NOTE) || 'Note from HashCortX, not from the person:';
     let found = null;
+    let grading = null;
 
     const asksLook = async (reply) => {
       if ((s.asks || 0) >= 1 || !A || asking(reply)) return null;
@@ -140,10 +178,21 @@
         message: `${note} your answer states details that nothing the person gave or you read says: ${Fa ? Fa.listOf(found.unsourced) : found.unsourced.map((x) => x.shown).join(', ')}. Find each with your tools, take it out, or say plainly that it is not confirmed.` };
     };
 
+    const gradedLook = async (reply) => {
+      const g = gradesOf(reply, messages);
+      grading = g.grades && (!g.searched || g.unread.length) ? { searched: g.searched, unread: g.unread } : null;
+      if (!grading || (s.graded || 0) >= 1) return null;
+      return { kind: 'graded', step: GRADED_STEP, message: grading.searched
+        ? `${note} your answer names as its source ${grading.unread.join(', ')}, which none of your searches returned. Grade each pair from what your searches returned and name only those sources, or search again with web_search.`
+        : `${note} your answer grades pairs and no search ran for them. Search each pair with web_search before grading it, or mark it "? - verify manually" instead of grading it.` };
+    };
+
+    const finish = [{ id: 'asks', words: true, run: asksLook }, { id: 'claim', words: true, run: claimLook }, { id: 'facts', words: true, run: factsLook }];
+    if (graded) finish.push({ id: 'graded', words: true, run: gradedLook });
     return {
-      finish: [{ id: 'asks', words: true, run: asksLook }, { id: 'claim', words: true, run: claimLook }, { id: 'facts', words: true, run: factsLook }],
+      finish,
       // The loop's own lines are about pages and files; the chat says what is left in its own words (leftLine).
-      left: () => ({ unconfirmed: null, gone: null, outside: null, found }),
+      left: () => ({ unconfirmed: null, gone: null, outside: null, found: found || grading ? { ...(found || { unsourced: [] }), grading } : null }),
       wrap: async () => null,
     };
   }
@@ -151,9 +200,13 @@
   /** What is said under a chat answer about details still unconfirmed, or ''. */
   function leftLine(found) {
     const Fa = window.HCCodeFacts;
-    if (!found || !Array.isArray(found.unsourced) || !found.unsourced.length) return '';
-    return `Not confirmed by anything you gave or the agent read: ${Fa ? Fa.listOf(found.unsourced) : found.unsourced.map((x) => x.shown).join(', ')}. Check before relying on ${found.unsourced.length === 1 ? 'it' : 'them'}.`;
+    const lines = [];
+    if (found && Array.isArray(found.unsourced) && found.unsourced.length) lines.push(`Not confirmed by anything you gave or the agent read: ${Fa ? Fa.listOf(found.unsourced) : found.unsourced.map((x) => x.shown).join(', ')}. Check before relying on ${found.unsourced.length === 1 ? 'it' : 'them'}.`);
+    const g = found && found.grading;
+    if (g && !g.searched) lines.push('No search ran for these grades: check each pair with a pharmacist or physician before relying on it.');
+    else if (g && g.unread.length) lines.push(`Named as a source and not among what the searches returned: ${g.unread.join(', ')}.`);
+    return lines.join(' ');
   }
 
-  window.HCChatFinish = { ASKS_STEP, FACTS_STEP, covers, citesIn, unreadCites, checks, leftLine };
+  window.HCChatFinish = { ASKS_STEP, FACTS_STEP, GRADED_STEP, covers, citesIn, unreadCites, gradesOf, checks, leftLine };
 })();

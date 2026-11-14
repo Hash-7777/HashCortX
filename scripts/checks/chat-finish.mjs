@@ -120,6 +120,39 @@ await (async () => {
   ok('an agent not marked so is held to every detail, search or none', !!(await grounded.finish[2].run('Rosewood Bakery opened in 1987; call 020 7946 0321.')));
 })();
 
+console.log('\nA drug pair graded with nothing searched (an agent that grades):');
+await (async () => {
+  if (typeof F.checks !== 'function') return;
+  const card = (src) => `---\n**Warfarin and Ibuprofen**\nGrade: **D** - Major\nEffect: bleeding.\nSource: ${src}\n---`;
+  const lexi = (q) => [{ role: 'system', content: 'Before grading any pair, call web_search: "[Drug A] [Drug B] drug interaction drugs.com".' }, { role: 'user', content: q }];
+  const looked = (q, result) => [...lexi(q), { role: 'assistant', content: '', tool_calls: [{ id: 'w', function: { name: 'web_search', arguments: '{"query":"warfarin ibuprofen"}' } }] }, { role: 'tool', tool_call_id: 'w', name: 'web_search', content: result }];
+  const wiki = JSON.stringify({ results: [{ title: 'Warfarin', snippet: 'Taking it with ibuprofen raises the risk of bleeding.', url: 'https://en.wikipedia.org/wiki/Warfarin' }] });
+  const off = F.checks({ messages: lexi('x'), sent: sent(), request: 'x' });
+  ok('an agent that does not grade has no such check', json(off.finish.map((x) => x.id)) === '["asks","claim","facts"]');
+  const g = (messages, s = sent()) => F.checks({ messages, sent: s, request: 'Check warfarin with ibuprofen.', graded: true });
+  const none = g(lexi('Check warfarin with ibuprofen.'));
+  ok('one that grades has it, last, on an answer in words', json(none.finish.map((x) => x.id)) === '["asks","claim","facts","graded"]' && none.finish[3].words === true);
+  const back = await none.finish[3].run(card('Wikipedia: Warfarin'));
+  ok('a grade with no search since the request is sent back once, to search each pair or mark it to be checked', !!back && back.kind === 'graded' && /no search ran/i.test(back.message) && /web_search/.test(back.message) && /verify manually/.test(back.message), back && back.message);
+  ok('...and is said under the answer', /No search ran for these grades/.test(F.leftLine(none.left().found)), F.leftLine(none.left().found));
+  const s1 = sent(); s1.graded = 1;
+  ok('...sent back once only', (await g(lexi('x'), s1).finish[3].run(card('x'))) === null);
+  ok('a pair marked to be checked, with no grade given, is not a grade', (await g(lexi('x')).finish[3].run('**Warfarin and Ibuprofen**\nGrade: ? - verify manually\nSource: none')) === null);
+  ok('a grade written in a code block is not one', (await g(lexi('x')).finish[3].run('```\nGrade: D\n```')) === null);
+  const ok1 = g(looked('x', wiki));
+  ok('after a search, a source its search returned is fine', (await ok1.finish[3].run(card('Wikipedia: Warfarin'))) === null && F.leftLine(ok1.left().found) === '');
+  const bad = g(looked('x', wiki));
+  const b2 = await bad.finish[3].run(card('drugs.com'));
+  ok('after a search, a source named that no search returned is sent back, named', !!b2 && b2.kind === 'graded' && /drugs\.com/.test(b2.message), b2 && b2.message);
+  ok('...and said under the answer', /drugs\.com/.test(F.leftLine(bad.left().found)), F.leftLine(bad.left().found));
+  const url = await g(looked('x', wiki)).finish[3].run(card('https://www.drugs.com/interactions/warfarin-ibuprofen.html'));
+  ok('...named by its site when it is given as an address', !!url && /drugs\.com/.test(url.message) && !/interactions\//.test(url.message), url && url.message);
+  ok('the agent\'s own instructions naming a site are not where it was found', !!(await g(looked('x', wiki)).finish[3].run(card('drugs.com'))));
+  const both = g(looked('x', JSON.stringify({ results: [{ title: 'Interactions', url: 'https://www.drugs.com/x' }] })));
+  ok('a site a search did return is fine, however it is written', (await both.finish[3].run(card('Drugs.com'))) === null && (await both.finish[3].run(card('https://drugs.com/interactions'))) === null);
+  ok('a source too short to look for is left alone', (await g(looked('x', wiki)).finish[3].run(card('NHS'))) === null);
+})();
+
 console.log('\nA paper it cites that nothing found:');
 await (async () => {
   if (typeof F.checks !== 'function') return;

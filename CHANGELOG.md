@@ -14,6 +14,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   licensed pharmacist or physician.** The app adds it under the answer
   itself, so it is there whatever the model writes, and a copy made with
   Duplicate & edit keeps it.
+- **Medical Lexi-Check grades only from a search.** On a cloud model, a
+  pair graded when no search ran, or a card naming as its source a site
+  no search returned, is sent back once to search or to mark the pair to
+  be checked by hand; what is still so is said under the answer.
 
 - **A PubMed search marks papers that have been retracted, and
   preprints.** An agent searching PubMed is told which papers were

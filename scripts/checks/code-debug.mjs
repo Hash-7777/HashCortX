@@ -227,9 +227,9 @@ console.log('\nHow often a run was sent back, and whether it acted after:');
 {
   const R = D.sentBack ? D.sentBack({ runBegan: 7 }) : null;
   ok('a record holds a count for every reason the loop has, each at nought', !!R && D.SENT_KINDS.length > 0 && D.SENT_KINDS.every((k) => R.sent[k] === 0) && Object.keys(R.sent).length === D.SENT_KINDS.length);
-  const verify = src('js', 'code', 'verify.js'), mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
-  const named = new Set([...verify.matchAll(/kind: '(\w+)'/g), ...mode.matchAll(/\bsent\.(\w+)/g)].map((m) => m[1]));
-  ok('...and every reason the loop and the finishing checks name is among them', !!R && [...named].every((k) => D.SENT_KINDS.includes(k)), [...named].filter((k) => !(D.SENT_KINDS || []).includes(k)).join(', '));
+  const verify = src('js', 'code', 'verify.js'), chatChecks = src('js', 'chat', 'finish.js'), mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
+  const named = new Set([...verify.matchAll(/kind: '(\w+)'/g), ...chatChecks.matchAll(/kind: '(\w+)', step:/g), ...mode.matchAll(/\bsent\.(\w+)/g)].map((m) => m[1]));   // the chat's: a send-back carries a step; a detail's kind does not
+  ok('...and every reason the loop and the finishing checks name, HashCoder\'s and the chat\'s, is among them', !!R && [...named].every((k) => D.SENT_KINDS.includes(k)), [...named].filter((k) => !(D.SENT_KINDS || []).includes(k)).join(', '));
   const change = (id = 'call_1') => ({ id, name: 'patch_file' });
   if (R) {
     R.sent.prove++; R.worked(change());

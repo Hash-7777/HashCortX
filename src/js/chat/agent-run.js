@@ -34,6 +34,8 @@
   const RAN_STEP = 'Sent back: Python it says ran, and none ran';
   /** The agents that may answer from what they know: their details are held to a source only once they have searched (js/chat/finish.js). */
   const FROM_KNOWLEDGE = ['builtin_hash_ai', 'builtin_coder'];
+  /** The agents that grade, each grade held to a search and each source to what one returned (js/chat/finish.js). */
+  const GRADED = ['builtin_medical_lexi'];
 
   /** Whether this agent, on this model, runs on the shared loop. */
   const onLoop = (agent, model) => !!agent && ON_LOOP.includes(agent.id) && !agent.lite && /^cloud:/.test(String(model || ''));
@@ -82,7 +84,7 @@
       error: (e) => d.record(d.assistant, 'error', String((e && e.message) || e)),
     };
     const checks = ({ sent }) => {
-      const c = F.checks({ messages, sent, request: scope.request, knowledge: FROM_KNOWLEDGE.includes(d.agent && d.agent.id) });
+      const c = F.checks({ messages, sent, request: scope.request, knowledge: FROM_KNOWLEDGE.includes(d.agent && d.agent.id), graded: GRADED.includes(d.agent && d.agent.id) });
       // Python the answer says ran, when none ran: sent back once to run it with the tool.
       const ran = { id: 'ran', words: true, run: async (reply) => {
         if (!python || sent.said || !S || !S.extractPythonFence || !S.claimsItRan) return null;
@@ -123,5 +125,5 @@
     return final;
   }
 
-  window.HCChatAgentRun = { ON_LOOP, FROM_KNOWLEDGE, RAN_STEP, onLoop, run };
+  window.HCChatAgentRun = { ON_LOOP, FROM_KNOWLEDGE, GRADED, RAN_STEP, onLoop, run };
 })();
