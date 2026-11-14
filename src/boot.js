@@ -161,6 +161,7 @@
     '/js/chat/finish.js',
     '/js/chat/agent-run.js',
     '/js/chat/view-model.js',
+    '/js/chat/view.js',
     '/js/model-speed.js',
     '/js/model-routes.js',
     '/js/markdown-safe.js',

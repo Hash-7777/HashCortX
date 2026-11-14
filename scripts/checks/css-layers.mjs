@@ -183,6 +183,9 @@ const IMPORTANT_BUDGET = {
   'css/sidebar.css': 0,
   'css/tabs.css': 0,
   'css/composer.css': 0,
+  // 2: when less motion is asked for, every transition and animation in a chat
+  // agent's thinking view stops, whatever rule set it.
+  'css/chat-view.css': 2,
   'modes/forge/mode.css': 0,
 };
 

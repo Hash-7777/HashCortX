@@ -43,7 +43,7 @@ const PAGE = { url: 'https://larkfield-harbour.example/visit', text: 'Visit the 
 console.log('\nIt begins with the question:');
 let m = typeof V.start === 'function' ? V.start(ASK, 1000) : null;
 {
-  ok('the parts of a question of several asks, each open', !!m && m.parts.length === 3 && m.parts.every((p) => !p.served && !p.found) && m.parts[0].text === 'When was Larkfield Lighthouse first lit', json(m && m.parts));
+  ok('the parts of a question of several asks, each open', !!m && m.parts.length === 3 && m.parts.every((p) => !p.served && !p.found && p.by.length === 0) && m.parts[0].text === 'When was Larkfield Lighthouse first lit', json(m && m.parts));
   ok('the journey starts at understanding, and says how many things there are to find out', !!m && m.now === 'understand' && json(m.stations) === '["understand"]' && said(m) === 'Reading your question: three things to find out', said(m));
   ok('...and a question of one ask is just read', said(V.start('What is a tide?', 0)) === 'Reading your question' && V.start('What is a tide?', 0).parts.length === 0);
   ok('it is plain data, kept with the reply', !!m && json(JSON.parse(json(m))) === json(m) && m.v === 1 && m.startedAt === 1000);
@@ -73,6 +73,7 @@ console.log('\nWhat it searched and read:');
   ok('the journey has reached the search', json(m.stations) === '["understand","search"]');
   V.toolCall(m, 'fetch_url', { url: PAGE.url });
   V.toolResult(m, 'fetch_url', PAGE);
+  ok('each part keeps which sources served it, for the map to draw its lines', json(m.parts.map((x) => x.by)) === '[[0],[0],[1]]', json(m.parts.map((x) => x.by)));
   ok('a page read is a source of its own, previewed by its site and first words', m.sources.length === 2 && m.sources[1].kind === 'page' && m.sources[1].site === 'larkfield-harbour.example' && /open to visitors on summer weekends/.test(m.sources[1].excerpt) && m.parts[2].served === true, json(m.sources[1]));
   ok('...and the journey has reached reading', json(m.stations) === '["understand","search","read"]' && m.now === 'read');
   const failed = V.start(ASK, 0); V.toolCall(failed, 'fetch_url', { url: 'https://x.example' }); V.toolResult(failed, 'fetch_url', { error: 'The user declined to read that page.' });
@@ -107,7 +108,9 @@ console.log('\nOnce the answer is in:');
   ok('...found again by the last words of its sentence', m.chips[0].tail === 'by the harbour board.' && m.chips[2].tail === 'on 020 7946 0555.', json(m.chips.map((c) => c.tail)));
   ok('...and the sources carry the same numbers', m.sources[0].n === 1 && m.sources[1].n === 2);
   ok('every part is answered', m.parts.every((p) => p.found));
-  ok('at a glance: each part with the sentence that answers it, and its source', m.glance.length === 3 && m.glance[0].n === 1 && /1874/.test(m.glance[0].answer) && m.glance[2].n === 2 && /summer weekends/.test(m.glance[2].answer), json(m.glance));
+  ok('at a glance: each part with the part of the sentence that answers it, and its source', m.glance.length === 3 && m.glance[0].n === 1 && m.glance[0].answer === 'Larkfield Lighthouse was first lit in 1874' && m.glance[1].answer === 'built by the harbour board' && m.glance[1].n === 1 && m.glance[2].answer === 'Its gallery is open to visitors on summer weekends' && m.glance[2].n === 2, json(m.glance));
+  ok('...the whole sentence when no shorter part of it holds the part\'s words', V.glanceOf?.('It was lit in 1874.', 'When was it first lit') === 'It was lit in 1874.');
+  ok('...or when the part that holds them is too short to stand alone', V.glanceOf?.('The cafe is small, open daily.', 'Is the cafe open daily') === 'The cafe is small, open daily.', String(V.glanceOf?.('The cafe is small, open daily.', 'Is the cafe open daily')));
   ok('grounding: how many of its sentences come from what it read', json(m.grounding) === json({ sourced: 2, total: 3 }), json(m.grounding));
   ok('what is not confirmed is kept to be said', json(m.caution) === json(['020 7946 0555']));
   ok('what the sources were matched on is not kept', m.sources.every((s) => !('text' in s)));

@@ -10,7 +10,8 @@
 //     "Reading <site>"), with the part it names set apart;
 //   · the journey's stations, in the order they were reached;
 //   · the parts of a question of several asks (js/code/asks.js), each
-//     served once something it read gives its words, and answered once
+//     served once something it read gives its words (by: which sources),
+//     and answered once
 //     the answer does (js/chat/finish.js covers);
 //   · the sources: each search and each page read, with a short preview;
 //   · once the answer is in: which of its sentences each source backs,
@@ -42,7 +43,7 @@
   function start(request, now = Date.now()) {
     const A = window.HCCodeAsks;
     const asks = A && A.split ? A.split(String(request || '')) : [];
-    const parts = (Array.isArray(asks) ? asks : []).map((a) => ({ text: String(a).trim().replace(/[?.!]+$/, ''), served: false, found: false }));
+    const parts = (Array.isArray(asks) ? asks : []).map((a) => ({ text: String(a).trim().replace(/[?.!]+$/, ''), served: false, found: false, by: [] }));
     return {
       v: 1, startedAt: now, done: false, took: null,
       now: 'understand', stations: ['understand'],
@@ -90,7 +91,8 @@
     }
     if (source) {
       m.sources.push(source);
-      for (const part of m.parts) if (!part.served && covers(source.text, part.text)) part.served = true;
+      const at = m.sources.length - 1;
+      for (const part of m.parts) if (covers(source.text, part.text)) { part.served = true; part.by = [...(part.by || []), at]; }
     }
     return m;
   }
@@ -118,6 +120,21 @@
   }
 
   /**
+   * The part of a sentence that answers an ask: of its clauses (split at a
+   * comma, a semicolon, "and", "but"), the one holding most of the ask's
+   * words, when it is a few words long; else the sentence.
+   */
+  function glanceOf(sentence, ask) {
+    const F = window.HCChatFinish, s = String(sentence || '').trim();
+    const keys = String(ask || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4).map((w) => w.slice(0, 5));
+    const clauses = s.split(/,\s+|;\s+|\s+and\s+|\s+but\s+/i).map((c) => c.trim().replace(/[.!?]+$/, '')).filter(Boolean);
+    if (clauses.length < 2 || !keys.length) return s;
+    const hits = (c) => { const w = c.toLowerCase().split(/[^\p{L}\p{N}]+/u); return keys.filter((k) => w.some((x) => x.startsWith(k))).length; };
+    const best = clauses.reduce((a, c) => (hits(c) > hits(a) ? c : a), clauses[0]);
+    return hits(best) && best.split(/\s+/).length >= 3 && !(F && F.covers && !F.covers(best, ask)) ? best : s;
+  }
+
+  /**
    * The answer is in. `o`: unsourced (the details nothing read gives, as
    * js/code/facts.js lists them), ended (when), checked (the answer went
    * through the finishing checks).
@@ -141,7 +158,7 @@
     for (const part of m.parts) part.found = covers(String(answer || ''), part.text);
     m.glance = m.parts.map((part) => {
       const s = sentences.find((x) => covers(x, part.text));
-      return { part: part.text, answer: s ? cut(s, 120) : '', n: s && chipOf.has(s) ? chipOf.get(s) : null };
+      return { part: part.text, answer: s ? cut(glanceOf(s, part.text), 120) : '', n: s && chipOf.has(s) ? chipOf.get(s) : null };
     }).filter((g) => g.answer);
     m.grounding = m.sources.length && sentences.length ? { sourced: m.chips.filter((c) => !c.warn).length, total: sentences.length } : null;
     m.caution = unsourced;
@@ -154,5 +171,5 @@
     return m;
   }
 
-  window.HCChatViewModel = { start, toolCall, toolResult, check, writing, finish, sentencesOf };
+  window.HCChatViewModel = { start, toolCall, toolResult, check, writing, finish, sentencesOf, glanceOf };
 })();

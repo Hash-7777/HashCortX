@@ -198,6 +198,8 @@ const BUDGET = {
   // HashCoder hides the chat whenever it is open, so none of it could be seen.
   'css/modes.css': 30,
   'css/main.css': 26,
+  // 0: a chat agent's thinking view is drawn on the shared tokens only.
+  'css/chat-view.css': 0,
   // 0, down from 26: the HashCoder panel was redrawn on the shared tokens,
   // so it follows the theme rather than carrying a palette of its own.
   'modes/code/mode.css': 0,
