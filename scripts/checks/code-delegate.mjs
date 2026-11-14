@@ -4,7 +4,8 @@
 // Loads the real src/js/code/delegate.js, with js/text-safety.js and
 // js/chat/sources.js beside it, and holds the rules a sub-agent lives by:
 // offered only to a model rated strong, on a project too large to show
-// whole and a request that is big, never to a sub-agent; one that explores
+// whole and a request that is big, or to a request that asks for one in
+// words, and never to a sub-agent; one that explores
 // is given no tool that changes anything and a call that tries is refused
 // before it runs; one that changes files may change only the files it was
 // given; its own conversation, a step limit and a time limit; Stop ends it;
@@ -58,6 +59,24 @@ console.log('Who is offered it:');
   ];
   for (const [why, change] of no) ok(`not offered: ${why}`, has('offered') && D.offered({ ...big, ...change }) === false);
   ok('nothing given, nothing offered', has('offered') && D.offered() === false && D.offered({}) === false);
+}
+
+console.log('Asked for in words:');
+{
+  const asks = ['Start two sub-agents to look at the styles and the motion.', 'deploy 2 subagents for the design', 'Use a sub-agent for the tests', 'spawn three agents, one per page', 'launch parallel agents on this'];
+  const not = ['Make the agent page look better', 'An agent that books tables', 'Fix the user agent string', 'agents.js throws on load'];
+  ok('a request that names sub-agents, or starting several agents, asks for them', has('askedFor') && asks.every((t) => D.askedFor(t) === true), asks.filter((t) => has('askedFor') && !D.askedFor(t)).join(' | '));
+  ok('a request that only mentions an agent does not', has('askedFor') && not.every((t) => D.askedFor(t) === false), not.filter((t) => has('askedFor') && D.askedFor(t)).join(' | '));
+  const small = { on: true, asked: true, project: true, strong: false, size: 'full', whole: true, asks: 1, steps: 0, foundCap: false, child: false };
+  ok('asked for, switched on, at full size: offered to a model not rated strong, in a project small enough to show whole, on one ask', has('offered') && D.offered(small) === true);
+  const refused = [['switched off', { on: false }], ['a mid-sized model', { size: 'mid' }], ['no project open', { project: false }], ['a run that is itself a sub-agent', { child: true }]];
+  for (const [why, change] of refused) ok(`asked for, still not offered: ${why}`, has('offered') && D.offered({ ...small, ...change }) === false);
+  const note = (change) => (has('notOffered') ? D.notOffered({ ...small, ...change }) : 'missing');
+  ok('asked for and offered: nothing is added for the model', note({}) === '');
+  ok('not asked for: nothing is added', note({ asked: false, on: false }) === '');
+  ok('switched off: the model is told it is the setting, and where it is', /switched off in Settings, HashCoder/.test(note({ on: false })) && /do each part yourself/.test(note({ on: false })), note({ on: false }));
+  ok('not at full size: the model is told so', /full size/.test(note({ size: 'mid' })), note({ size: 'mid' }));
+  ok('no project open: the model is told to have one opened', /no project folder is open/.test(note({ project: false })), note({ project: false }));
 }
 
 console.log('\nThe tool:');

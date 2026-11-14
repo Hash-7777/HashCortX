@@ -23,7 +23,8 @@
 //
 // Offered only to a model rated strong (js/model-profile.js), at full size,
 // switched on in Settings, on a project too large to show whole and a
-// request that is big. Off by default.
+// request that is big; or, with the switch on and the model at full size,
+// to a request that asks for sub-agents in words. Off by default.
 //
 // Pure: run() is handed the model, the tools, and how a call is made.
 // Published as window.HCCodeDelegate. Checked by scripts/checks/code-delegate.mjs.
@@ -78,11 +79,40 @@
     return '';
   }
 
-  /** Whether the delegate tool is offered to this run at all. */
+  /** Whether a request asks in words for sub-agents, or for several agents to be started. */
+  function askedFor(text) {
+    const t = String(text || '');
+    return /\bsub[- ]?agents?\b/i.test(t) || /\b(?:deploy|start|spawn|launch|use|run|send)\s+(?:(?:\d+|two|three|four|some|several|a few|parallel|helper|separate)\s+){1,2}agents?\b/i.test(t);
+  }
+
+  /**
+   * Whether the delegate tool is offered to this run at all. A request that
+   * asks for sub-agents in words is the person's own choice: with the switch
+   * on and the model at full size, it is offered whatever the model's rating
+   * or the project's size, so long as a project is open (`project`: false
+   * when none is; a sub-agent reads only inside one).
+   */
   function offered(facts) {
     const f = facts && typeof facts === 'object' ? facts : {};
-    if (!f.on || !f.strong || f.size !== 'full' || f.whole || f.child) return false;
+    if (!f.on || f.size !== 'full' || f.child) return false;
+    if (f.asked) return f.project !== false;
+    if (!f.strong || f.whole) return false;
     return (Number(f.asks) || 0) >= 3 || (Number(f.steps) || 0) >= 4 || !!f.foundCap;
+  }
+
+  /**
+   * For a request that asks for sub-agents when none can be started: the
+   * reason in the app's words, for the model to pass on, so it never answers
+   * that it is a single agent with no workers. '' when there is nothing to say.
+   */
+  function notOffered(facts) {
+    const f = facts && typeof facts === 'object' ? facts : {};
+    if (!f.asked || offered(f)) return '';
+    const why = !f.on ? 'they are switched off in Settings, HashCoder, "Let strong models start sub-agents"'
+      : f.size !== 'full' ? 'the model is not set to its full size in HashCoder'
+      : f.project === false ? 'no project folder is open, and a sub-agent works only inside one. Open the folder in HashCoder and ask again'
+      : 'this run cannot start them';
+    return `The request asks for sub-agents, and none can be started on this run: ${why}. Say so in those words, then do each part yourself, one after another.`;
   }
 
   const nameOf = (t) => (t && t.function ? t.function.name : t && t.name);
@@ -323,5 +353,5 @@ How to work:
     return (fn) => { const job = tail.then(() => fn()); tail = job.catch(() => {}); return job; };
   }
 
-  window.HCCodeDelegate = { SWITCH_KEY, switchedOn, switchOn, KINDS, AT_ONCE, STEPS, MINUTES, REPORT_MOST, CALLS_A_TURN, KIND_TOOLS, OPTIONAL, TOOL, offered, problem, toolsFor, reportForm, briefMessages, read, checked, handBack, run, oneAtATime };
+  window.HCCodeDelegate = { SWITCH_KEY, switchedOn, switchOn, KINDS, AT_ONCE, STEPS, MINUTES, REPORT_MOST, CALLS_A_TURN, KIND_TOOLS, OPTIONAL, TOOL, askedFor, offered, notOffered, problem, toolsFor, reportForm, briefMessages, read, checked, handBack, run, oneAtATime };
 })();

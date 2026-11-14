@@ -113,7 +113,7 @@ It works on your real files. Every edit is a diff with **Keep** and **Undo**, te
 - **Keeps what you did not ask to change.** An edit that drops a function, a section or a heading is sent back, and what you say to leave alone is left alone.
 - **Works in your repository.** Its own git tools read the status and the changes, commit when you ask, signed as your commits are, and make a branch, push or pull only after asking you each time, never forced.
 - **Offers a way on when it stops short.** A run that ends stuck, at its limit or with parts of a several-part request still open offers once more with a hint, or a fresh start on a stronger model you have, from your request and what it already did.
-- **Hands off part of a big task, if you switch it on.** New, and not yet proven on real runs, so it is off until you turn it on: a strong model can start sub-agents on the same model, one that reads and reports or one that changes only the files it is given, and HashCortX checks each report before the model reads it.
+- **Hands off part of a big task, if you switch it on.** New, and not yet proven on real runs, so it is off until you turn it on: a strong model can start sub-agents on the same model, and any model at full size can when your request asks for them, one that reads and reports or one that changes only the files it is given, and HashCortX checks each report before the model reads it.
 - **Asks as much as you choose.** Manual asks before every change and is where it starts; Accept edits writes project files freely; Auto adds a fixed list of read, search and check commands.
 
 <img src="docs/assets/screenshots/coder.png" alt="HashCoder: a run on a local model that added validation to a route, shown as a diff with Keep and Undo, with the passing test run said under the answer" width="100%">
@@ -205,7 +205,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --no-default-features     # and 
 Before a pull request, run what CI runs: every source check on Linux, the ones that could depend on the system (`npm run check:windows`) on Windows too, and the Rust tests on all three:
 
 ```bash
-npm run check                                     # 13,054 source checks
+npm run check                                     # 13,069 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 267 Rust tests
 ```
 

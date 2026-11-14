@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Ask for sub-agents in your request and HashCoder starts them.** With
+  sub-agents switched on in Settings, a request that asks for them in
+  words is offered them on any model at full size, in a project of any
+  size, not only on a model rated strong in a large project. When none can
+  be started, because the switch is off, the model is not at full size or
+  no project folder is open, the model is told which, and says so.
+
 - **A chat reply is formatted as it is written, at a reading pace.** A
   reply used to arrive as raw text, its marks for bold, code and tables on
   show, every word as fast as the provider sent it, and then jump into its

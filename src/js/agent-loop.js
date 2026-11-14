@@ -73,7 +73,7 @@
     // request in a project too large to show whole. Each runs on this run's model, through the same call and so the app's request cap, with
     // the same stop. What one changes joins this run's record and change rows; its reading stays in its own conversation.
     const DG = window.HCCodeDelegate, subAgents = [], map = sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap : null;
-    const delegating = !!DG && !bare && !sharedState.light && DG.offered({ on: DG.switchedOn(), strong: !!HC?.code?.strong, size: sharedState.size, whole: !(map && !map.whole && map.outline), asks: (HC?.code?.asks || []).length,
+    const delegating = !!DG && !bare && !sharedState.light && DG.offered({ on: DG.switchedOn(), asked: !!DG.askedFor?.(HC?.code?.request), project: !!sharedState.projectRoot, strong: !!HC?.code?.strong, size: sharedState.size, whole: !(map && !map.whole && map.outline), asks: (HC?.code?.asks || []).length,
       steps: HC?.code?.plan && window.HCCodePlan ? window.HCCodePlan.openSteps(HC.code.plan).length : 0, foundCap: (sharedState.found?.files?.length || 0) >= (window.HCCodeFind?.SIZED?.full?.files || Infinity) });
     if (!delegating) tools = (tools || []).filter((t) => (t.function ? t.function.name : t.name) !== 'delegate');
     const writers = DG ? DG.oneAtATime() : null, CHANGING = ['write_file', 'patch_file', 'delete_file', 'move_file'], READING = ['read_file', 'list_dir', 'grep_code', 'fuzzy_find', 'uses_of'];

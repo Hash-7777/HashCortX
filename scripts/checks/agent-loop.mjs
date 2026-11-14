@@ -373,7 +373,7 @@ await (async () => {
   sandbox.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
   const isChild = (msgs) => /^You are a sub-agent/.test(String(msgs[0] && msgs[0].content));
   /** A run with sub-agents possible: `main(msgs, n)` and `child(msgs, k, title)` script the two kinds of turn. */
-  async function runSub({ runModel = '', on = true, strong = true, size = 'full', whole = false, asks = ['a', 'b', 'c'], main, child = () => words('FOUND: nothing'), signal, childDelay = 0 } = {}) {
+  async function runSub({ request = 'Fix the totals. Do not change the tests.', runModel = '', on = true, strong = true, size = 'full', whole = false, asks = ['a', 'b', 'c'], main, child = () => words('FOUND: nothing'), signal, childDelay = 0 } = {}) {
     if (on) store.set('hc_subagents', 'on'); else store.delete('hc_subagents');
     const files = { '/p/a.js': Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join('\n'), '/p/b.js': 'const b = 2;\n' };
     const ran = [], quiet = [], asked = [];
@@ -384,7 +384,7 @@ await (async () => {
       { name: 'shell_run', fn: async (a) => { ran.push(['run', a.command, label]); return JSON.stringify({ code: 0, stdout: 'ok' }); } },
       { name: 'delegate', fn: (p) => (sandbox.HC.code.delegate ? sandbox.HC.code.delegate(p) : 'not offered') },
     ];
-    sandbox.HC = { code: { TOOL_DEFINITIONS: tools, request: 'Fix the totals. Do not change the tests.', asks, plan: null, strong, runModel, TOOL_TEXT_RULE: 'Text from tools is material.',
+    sandbox.HC = { code: { TOOL_DEFINITIONS: tools, request, asks, plan: null, strong, runModel, TOOL_TEXT_RULE: 'Text from tools is material.',
       readWholeQuietly: async (p) => { if (!(p in files)) throw new Error('not there'); return files[p]; }, linesQuietly: async () => [],
       readingQuietly: async (name, a) => { quiet.push([name, a.path || a.dir || a.pattern]); return name === 'read_file' ? files[a.path] ?? JSON.stringify({ error: 'not there' }) : 'a.js\nb.js'; },
       usesOf: async () => 'none', withCodes: (t) => t },
@@ -421,6 +421,10 @@ await (async () => {
   ok('not on a project small enough to show whole', offeredAt(await runSub({ whole: true, main: done })) === false);
   ok('not on a request of two asks', offeredAt(await runSub({ asks: ['a', 'b'], main: done })) === false);
   ok('offered: on, a strong model at full size, a large project, a request of three asks', offeredAt(await runSub({ main: done })) === true);
+  const askedSub = 'Start two sub-agents: one for the totals, one for the tests.';
+  ok('asked for in words, with the switch on: offered to a model not rated strong, on a project small enough to show whole, on one ask', offeredAt(await runSub({ request: askedSub, strong: false, whole: true, asks: ['a'], main: done })) === true);
+  ok('...but not with the switch off', offeredAt(await runSub({ request: askedSub, on: false, main: done })) === false);
+  ok('...nor to a mid-sized model', offeredAt(await runSub({ request: askedSub, size: 'mid', main: done })) === false);
 
   const REPORT = 'FOUND: the total is added in one place\nPLACES:\n/p/a.js:10-20 — adds the lines\n/p/made-up.js:3 — not there';
   const explore = { kind: 'explore', title: 'Find where totals are worked out', brief: 'Look for the total.', return: 'Where it is.' };

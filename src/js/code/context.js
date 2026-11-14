@@ -26,11 +26,13 @@
    * the bar a site is held to when the request builds one; `activeFile` the
    * file open in the project, if any; `facts` remembered facts that bear on
    * the request, as `{ key, value }`; `asks` the request's asks as a list,
-   * when it has several (js/code/asks.js checklist).
+   * when it has several (js/code/asks.js checklist); `helpers` why the
+   * sub-agents a request asks for cannot be started (js/code/delegate.js).
    */
-  function forRequest({ site = '', activeFile = '', facts = [], asks = '' } = {}) {
+  function forRequest({ site = '', activeFile = '', facts = [], asks = '', helpers = '' } = {}) {
     const lines = [];
     if (asks) lines.push(String(asks));
+    if (helpers) lines.push(String(helpers));
     if (site) lines.push(String(site));
     if (activeFile) lines.push(`Active file: ${activeFile}`);
     const known = (Array.isArray(facts) ? facts : []).filter((f) => f && f.key);
