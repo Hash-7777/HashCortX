@@ -26,6 +26,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder's request card no longer covers the run, and a row of the
+  run's receipt no longer squeezes its words.** The card listing each ask
+  of a request was pinned to the top of the conversation while it
+  scrolled, and covered the steps and lines that passed under it. It now
+  stays at the top of its reply. In the receipt under an answer, a row's
+  buttons sat beside its words however little room was left, so a row
+  such as Try again wrapped its words into a narrow column; the buttons
+  now move under the words, to the right, before that happens, and a long
+  model name on a button is cut short.
+
 - **A command in the permission question is shown whole, the width of
   the window.** With four buttons beside it, the command was squeezed into
   a narrow column and broken in the middle of its words. It now has a line

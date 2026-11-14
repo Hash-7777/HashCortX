@@ -450,7 +450,9 @@ body.coder-mode #app { display: none; }
 .cdr-signal-band:hover .cdr-signal-hair, .cdr-signal-band:hover .cdr-signal-tip { opacity: 1; }
 .cdr-phase--lit .cdr-phase-h { background: var(--surface-raised); }
 /* The brief (js/run-view.js brief): each ask of the request with its state, in view while the reply scrolls. */
-.cdr-brief { position: sticky; top: 0; z-index: 2; margin: 0 0 14px; padding: 6px 6px 8px; border: 1px solid var(--cdr-border); border-radius: var(--radius-sm); background: var(--surface-0); }
+/* In the reply where it was drawn, not pinned over the run: held at the top of
+   the scroll, it covered the steps and lines that scrolled beneath it. */
+.cdr-brief { margin: 0 0 14px; padding: 6px 6px 8px; border: 1px solid var(--cdr-border); border-radius: var(--radius-sm); background: var(--surface-0); }
 .cdr-brief-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; padding: 4px 8px; background: none; border: 0; border-radius: var(--radius-xs); font: inherit; color: inherit; cursor: pointer; }
 .cdr-brief-h:hover, .cdr-brief-h:focus-visible { background: var(--surface-raised); outline: none; }
 .cdr-brief-name { font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--cdr-text-muted); }
@@ -474,7 +476,14 @@ body.coder-mode #app { display: none; }
 .cdr-step--served .cdr-step-object { color: var(--cdr-text); }
 /* The receipt under the answer (js/run-view.js receipt): what the app's records show, a row only when it has something. */
 .cdr-receipt { margin: 14px 0 4px; border: 1px solid var(--cdr-border); border-radius: var(--radius-sm); }
-.cdr-receipt-row { display: grid; grid-template-columns: 18px 92px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 34px; padding: 6px 12px; border-top: 1px solid var(--cdr-border); font-size: 12.5px; }
+/* A row's buttons sit beside its words while the words keep 240px, and move under
+   them, to the right, when they would not: the words are never squeezed into a column. */
+.cdr-receipt-row { display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 6px; min-height: 34px; padding: 6px 12px; border-top: 1px solid var(--cdr-border); font-size: 12.5px; }
+.cdr-receipt-row > .cdr-receipt-mark { flex: 0 0 18px; }
+.cdr-receipt-row > .cdr-receipt-label { flex: 0 0 92px; }
+.cdr-receipt-row > .cdr-receipt-text { flex: 1 1 240px; }
+.cdr-receipt-row > .cdr-receipt-ctl { flex: 0 1 auto; margin-left: auto; max-width: 100%; }
+.cdr-receipt-ctl .cdr-step-btn.stronger { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cdr-receipt-row:first-child { border-top: 0; }
 .cdr-receipt-mark { display: inline-flex; color: var(--cdr-text-muted); }
 #coder-mode-wrap .cdr-receipt-mark svg { width: 15px; height: 15px; stroke-width: 1.4; }

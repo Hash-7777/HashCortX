@@ -155,5 +155,14 @@ const boot = src('boot.js');
 ok('it is loaded after the module it reads and before the steps that call it', boot.indexOf("'/js/run-view.js'") > boot.indexOf("'/js/code/verify.js'") && boot.indexOf("'/js/run-view.js'") < boot.indexOf("'/js/code/steps.js'"));
 ok('it is part of npm run check', /npm run check:run-view\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 
+console.log('\nHow the brief and the receipt sit on the page:');
+{
+  const css = src('modes', 'code', 'mode.css');
+  const rule = (sel) => (new RegExp('\\n' + sel.replace(/[.]/g, '\\.') + ' \\{([^}]*)\\}').exec(css) || [])[1] || '';
+  ok('the brief sits in its reply, never pinned over the steps that scroll under it', !!rule('.cdr-brief') && !/position:\s*sticky/.test(rule('.cdr-brief')));
+  ok('a receipt row\'s buttons move under its words before the words are squeezed', /display: flex; flex-wrap: wrap;/.test(rule('.cdr-receipt-row')) && /flex: 1 1 240px;/.test(rule('.cdr-receipt-row > .cdr-receipt-text')) && /margin-left: auto;/.test(rule('.cdr-receipt-row > .cdr-receipt-ctl')));
+  ok('...and a long model name on the stronger button is cut, not left to widen the row', /max-width: 260px;[^}]*text-overflow: ellipsis/.test(rule('.cdr-receipt-ctl .cdr-step-btn.stronger')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/run-view.js)`);
 process.exit(fail ? 1 : 0);
