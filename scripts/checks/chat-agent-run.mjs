@@ -50,7 +50,8 @@ console.log('Which agents run on the shared loop:');
   ok('HashCortx and Coder may answer from what they know; the agents that look things up may not', Array.isArray(R.FROM_KNOWLEDGE) && R.FROM_KNOWLEDGE.includes('builtin_hash_ai') && R.FROM_KNOWLEDGE.includes('builtin_coder') && !R.FROM_KNOWLEDGE.some((id) => R.ON_LOOP.includes(id) && /url_reader|researcher|papers|deep_research/.test(id)), String(R.FROM_KNOWLEDGE));
   ok('...and the chat\'s checks are told which', /F\.checks\(\{ messages, sent, request: scope\.request, knowledge: FROM_KNOWLEDGE\.includes\(d\.agent && d\.agent\.id\) \}\)/.test(readFileSync(join(here, '..', '..', 'src', 'js', 'chat', 'agent-run.js'), 'utf8')));
   ok('HashCortx, on a cloud model, and not on a model on this computer', R.onLoop?.({ id: 'builtin_hash_ai', tools: ['memory', 'web_search'] }, 'cloud:groq:m') === true && R.onLoop?.({ id: 'builtin_hash_ai' }, 'qwen2.5:7b') === false);
-  ok('...not the agents not moved yet, nor a lite one', R.onLoop?.({ id: 'builtin_medical_lexi' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_coder' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_url_reader', lite: true }, 'cloud:groq:m') === false && R.onLoop?.(null, 'cloud:groq:m') === false);
+  ok('Coder, on a cloud model, and not on a model on this computer', R.onLoop?.({ id: 'builtin_coder', tools: ['web_search', 'code_interpreter'] }, 'cloud:groq:m') === true && R.onLoop?.({ id: 'builtin_coder' }, 'qwen2.5:7b') === false);
+  ok('...not the agents not moved yet, nor a lite one', R.onLoop?.({ id: 'builtin_medical_lexi' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_url_reader', lite: true }, 'cloud:groq:m') === false && R.onLoop?.(null, 'cloud:groq:m') === false);
 }
 
 let ids = 0;

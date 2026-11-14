@@ -25,9 +25,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   given while the model is still writing. The request counts toward the
   provider's usage like any other.
 
-- **URL Reader, Researcher, Published Papers Researcher, Deep Research and
-  HashCortx run on HashCoder's agent loop when they use a cloud model.**
-  The first five of the chat's agents to move. A run ends when it stops making
+- **URL Reader, Researcher, Published Papers Researcher, Deep Research,
+  HashCortx and Coder run on HashCoder's agent loop when they use a cloud
+  model.** The first six of the chat's agents to move. A run ends when it stops making
   progress, within the loop's limits, which leaves room for a brief that
   needs several searches. The conversation
   each is shown is sized to the model rather than cut to a fixed size, older
@@ -39,9 +39,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   page read, counts), Python it says ran when none did, and an address,
   number or email, or a paper cited by its PMID, DOI, PMC or arXiv number,
   that nothing it read gives, are each sent back once, and anything still
-  unconfirmed is said under the answer. HashCortx may answer from what it
-  knows: its details are held to a source only once it has searched or
-  read something, and a paper it cites always is. The other agents,
+  unconfirmed is said under the answer. HashCortx and Coder may answer
+  from what they know: their details are held to a source only once they
+  have searched or read something, and a paper they cite always is. The other agents,
   and every agent on a model on this computer, run as before.
 
 - **HashCoder does not start a model on a job it cannot hold.** Before a
