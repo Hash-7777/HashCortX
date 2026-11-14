@@ -736,6 +736,7 @@ console.log('\nA picture reaches a model that sees it, and one that cannot is to
   ok('...and told, by name, where a picture was and that it was not sent', /A picture was attached here\. Some Model cannot see pictures, so it was not sent\./.test(blind[1].content));
   ok('...and to say so rather than describe it', /Say so plainly rather than describe it\.\]$/.test(blind[1].content));
   ok('a message of pictures alone becomes the note alone, counting them', /^\[2 pictures were attached here\. Some Model cannot see pictures, so they were not sent\./.test(blind[4].content));
+  ok('a model is named by its name, not its provider beside it', /^\[A picture was attached here\. GPT 3\.5 Turbo cannot see/.test(A.pictureNote({ content: '', images: ['A'] }, 'GPT 3.5 Turbo · OpenAI')));
   ok('a model with no name given is still named', /The model in use cannot see pictures/.test(A.pictureNote({ content: 'x', images: ['A'] })));
   ok('a message with no picture is its words unchanged', A.pictureNote({ content: 'plain' }, 'M') === 'plain' && A.pictureNote(null, 'M') === '');
   ok('with no words-only form given, each message is still sent', A.withPictures([{ role: 'user', content: 'hi' }], null, false, 'M')[0].content === 'hi');

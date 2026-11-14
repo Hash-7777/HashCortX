@@ -86,7 +86,7 @@
   function pictureNote(m, modelLabel) {
     const n = (m && Array.isArray(m.images) && m.images.length) || 0;
     if (!n) return (m && m.content) || '';
-    const who = String(modelLabel || 'The model in use');
+    const who = String(modelLabel || 'The model in use').split(' · ')[0];   // its name, not its provider beside it
     const note = n === 1
       ? `[A picture was attached here. ${who} cannot see pictures, so it was not sent. Say so plainly rather than describe it.]`
       : `[${n} pictures were attached here. ${who} cannot see pictures, so they were not sent. Say so plainly rather than describe them.]`;
