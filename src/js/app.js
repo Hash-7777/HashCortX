@@ -559,9 +559,8 @@ After all cards, output:
 
 **CRITICAL ALERTS** (D and X grades only, one line each with bold drug names)
 
-**Sources consulted:** [list]
-
-*This report is for informational purposes only. Verify with a licensed pharmacist or physician and Lexicomp / Drugs.com before making any medication decisions.*`,
+**Sources consulted:** [list]`,
+      notice: "This report is for information only. Check it with a licensed pharmacist or physician before making any medication decision.",   // added under every answer by the app, never asked of the model (js/chat/notice.js)
       tools: ["memory", "web_search", "fetch_url", "code_interpreter"]
     },
     {
@@ -1813,7 +1812,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       editingAgent = {
         id: null,
         icon: source.icon, name: source.name + " (copy)", description: source.description,
-        systemPrompt: source.systemPrompt, tools: [...(source.tools || [])]
+        systemPrompt: source.systemPrompt, tools: [...(source.tools || [])], ...(source.notice ? { notice: source.notice } : {})   // a copy keeps the notice put under its answers (js/chat/notice.js)
       };
       $("agentTitle").textContent = "Duplicate agent";
       $("deleteAgentBtn").style.display = "none";
@@ -1868,7 +1867,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       name,
       description: $("agentDesc").value.trim(),
       systemPrompt: $("agentSystem").value.trim(),
-      tools
+      tools, ...(editingAgent.notice ? { notice: editingAgent.notice } : {})
     };
     if (editingAgent.id) {
       state.agents = state.agents.map(a => a.id === record.id ? record : a);
@@ -4516,7 +4515,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         recordAgentEvent(assistant, "error", err?.message || String(err || "Agent failed"));
         if (err.name !== "AbortError") showError(err);
       }
-      finishAgentRun(assistant);
+      window.HCAgentNotice?.add(activeAgent, assistant); finishAgentRun(assistant);   // an agent's notice under its answer, by the app (js/chat/notice.js)
       flushPendingBubbleUpdate();
     } else {
       // ── Plain chat (no agent selected) ────────────────────────────────

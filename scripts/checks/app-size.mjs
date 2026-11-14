@@ -239,7 +239,9 @@ const LINE_BUDGET = {
   // 6434, down 31: the chat's HashCoder branch, which no screen could reach,
   // is gone with the selection toolbar's Fix button and two bridge entries.
   // 6418, down 16: a PubMed search's papers are read in js/chat/papers.js.
-  'js/app.js': 6418,
+  // 6417, down 1: Medical Lexi-Check's closing words are its notice, added by
+  // js/chat/notice.js, not a paragraph of its instructions.
+  'js/app.js': 6417,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

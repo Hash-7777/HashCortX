@@ -146,6 +146,7 @@
     '/js/chat/context.js',
     '/js/chat/title.js',
     '/js/chat/papers.js',
+    '/js/chat/notice.js',
     '/js/chat/versions.js',
     '/js/chat/failover.js',
     '/js/chat/web-search.js',

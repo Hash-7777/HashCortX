@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Medical Lexi-Check closes every answer with a notice to check with a
+  licensed pharmacist or physician.** The app adds it under the answer
+  itself, so it is there whatever the model writes, and a copy made with
+  Duplicate & edit keeps it.
+
 - **A PubMed search marks papers that have been retracted, and
   preprints.** An agent searching PubMed is told which papers were
   withdrawn and are not evidence, and which have not been through peer
