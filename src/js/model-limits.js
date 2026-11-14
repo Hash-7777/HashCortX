@@ -72,13 +72,17 @@
 
   const listed = new Map();
 
-  /** What a provider's list says about a model: context, longest answer, tools. */
+  /** What a provider's list says about a model: context, longest answer, tools, pictures. */
   function remember(value, info) {
     if (!value || !info) return;
     const ctx = num(info.ctx);
     const out = num(info.out);
-    if (ctx || out || info.tools != null) listed.set(value, { ctx, out, tools: info.tools });
+    const sees = typeof info.sees === 'boolean' ? info.sees : undefined;
+    if (ctx || out || info.tools != null || sees != null) listed.set(value, { ctx, out, tools: info.tools, sees });
   }
+
+  /** Whether a provider's list said this model reads pictures; undefined when no list said. */
+  const seesOf = (value) => (listed.get(value) || {}).sees;
 
   /** Forget what the lists said — before a fresh set of lists is read. */
   const forgetListed = () => listed.clear();
@@ -333,7 +337,7 @@
   }
 
   window.HCModelLimits = {
-    remember, forgetListed, infoOf, estimateTokens, forContext, room, canHold, jobFit, JOB_ROOM, fitBody, readRefusal, learn, forgetLearned,
+    remember, seesOf, forgetListed, infoOf, estimateTokens, forContext, room, canHold, jobFit, JOB_ROOM, fitBody, readRefusal, learn, forgetLearned,
     MAX_FIELD, LEARNED_KEY, LEARNED_FOR_MS, ANTHROPIC_DEFAULT, CHARS_PER_TOKEN,
   };
 })();

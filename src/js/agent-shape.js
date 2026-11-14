@@ -77,6 +77,36 @@
     });
   }
 
+  /**
+   * A message's pictures as the words that stand in for them, for a model
+   * that cannot see. The picture is not sent, and the model is told so in
+   * the place it was — sending it would end the request with a refusal, and
+   * dropping it unsaid leaves the model to guess at what it never saw.
+   */
+  function pictureNote(m, modelLabel) {
+    const n = (m && Array.isArray(m.images) && m.images.length) || 0;
+    if (!n) return (m && m.content) || '';
+    const who = String(modelLabel || 'The model in use');
+    const note = n === 1
+      ? `[A picture was attached here. ${who} cannot see pictures, so it was not sent. Say so plainly rather than describe it.]`
+      : `[${n} pictures were attached here. ${who} cannot see pictures, so they were not sent. Say so plainly rather than describe them.]`;
+    return `${(m.content || '').trim()}${m.content && String(m.content).trim() ? '\n\n' : ''}${note}`;
+  }
+
+  /**
+   * The messages for one OpenAI-shaped request: `text` is each message as
+   * the request would carry it without pictures, built by the caller with
+   * whatever else its provider needs kept. A message with pictures gets them
+   * as blocks when the model sees, and a note in their place when it does not.
+   */
+  function withPictures(messages, text, sees, modelLabel) {
+    return (messages || []).map((m, i) => {
+      const base = (text && text[i]) || { role: m.role, content: m.content || '' };
+      if (!m || !m.images?.length || m.role === 'tool' || (m.role === 'assistant' && m.tool_calls?.length)) return base;
+      return { ...base, content: sees ? toOpenAIVision([m])[0].content : pictureNote(m, modelLabel) };
+    });
+  }
+
   /** Drop images and keep only the text, for a provider that cannot see. */
   function toTextOnly(messages) {
     return (messages || []).map((m) => ({ role: m.role, content: m.content || '' }));
@@ -820,6 +850,8 @@
     imageMimeFromBase64,
     visionMessage,
     toOpenAIVision,
+    pictureNote,
+    withPictures,
     toTextOnly,
     agentToolNames,
     buildOpenAITools,

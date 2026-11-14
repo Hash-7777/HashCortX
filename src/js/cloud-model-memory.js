@@ -80,6 +80,7 @@
         ...(count(m.ctx) ? { ctx: count(m.ctx) } : {}),
         ...(count(m.out) ? { out: count(m.out) } : {}),
         ...(typeof m.tools === 'boolean' ? { tools: m.tools } : {}),
+        ...(typeof m.sees === 'boolean' ? { sees: m.sees } : {}),
         ...(m.free ? { free: true } : {}),
       }));
   }

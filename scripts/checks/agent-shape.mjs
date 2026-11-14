@@ -711,5 +711,38 @@ console.log('\nEffort sent where a model takes it:');
   ok('the cloud turn adds it before its request is fitted, so a refusal drops it', /fitRequest\("openai", provider, model, HCAgentShape\.withEffort\(body, `cloud:\$\{provider\}:\$\{model\}`, messages\)\);/.test(app));
 }
 
+console.log('\nA picture reaches a model that sees it, and one that cannot is told where it was:');
+{
+  const msgs = [
+    { role: 'system', content: 'be brief' },
+    { role: 'user', content: 'what colour is this logo?', images: ['iVBORw0KGgo'] },
+    { role: 'assistant', content: null, tool_calls: [{ id: 'c1', type: 'function', function: { name: 'view_image', arguments: '{}' } }] },
+    { role: 'tool', tool_call_id: 'c1', name: 'view_image', content: '{"ok":true}' },
+    { role: 'user', content: '', images: ['/9j/4AAQ', 'UklGRiQA'] },
+  ];
+  // The caller's words-only form keeps what its provider needs, such as a model's thinking.
+  const text = msgs.map((m) => ({ role: m.role, content: m.content || '', ...(m.role === 'assistant' ? { reasoning_content: 'kept' } : {}) }));
+  const seen = A.withPictures(msgs, text, true, 'Some Model');
+  ok('a model that sees gets the picture as a block, with the words beside it', Array.isArray(seen[1].content) && seen[1].content[0].text === 'what colour is this logo?' && seen[1].content[1].image_url.url.startsWith('data:image/png;base64,'));
+  ok('...and two pictures as two blocks', Array.isArray(seen[4].content) && seen[4].content.length === 3);
+  ok('...while what the caller kept on every message is still there', seen[2].reasoning_content === 'kept' && seen[0].content === 'be brief');
+  ok('...and a tool call and its result are left as they are', seen[2] === text[2] && seen[3] === text[3]);
+
+  const blind = A.withPictures(msgs, text, false, 'Some Model');
+  ok('a model that cannot see is sent words only', blind.every((m) => typeof m.content === 'string'));
+  ok('...with the words that were there kept first', blind[1].content.startsWith('what colour is this logo?\n\n['));
+  ok('...and told, by name, where a picture was and that it was not sent', /A picture was attached here\. Some Model cannot see pictures, so it was not sent\./.test(blind[1].content));
+  ok('...and to say so rather than describe it', /Say so plainly rather than describe it\.\]$/.test(blind[1].content));
+  ok('a message of pictures alone becomes the note alone, counting them', /^\[2 pictures were attached here\. Some Model cannot see pictures, so they were not sent\./.test(blind[4].content));
+  ok('a model with no name given is still named', /The model in use cannot see pictures/.test(A.pictureNote({ content: 'x', images: ['A'] })));
+  ok('a message with no picture is its words unchanged', A.pictureNote({ content: 'plain' }, 'M') === 'plain' && A.pictureNote(null, 'M') === '');
+  ok('with no words-only form given, each message is still sent', A.withPictures([{ role: 'user', content: 'hi' }], null, false, 'M')[0].content === 'hi');
+
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  ok('no request is refused for carrying a picture: each path shapes it for the model instead', !/cannot read pictures\. Pick a model/.test(app));
+  ok('the agent turn and both streamed paths shape pictures through withPictures', (app.match(/HCAgentShape\.withPictures\(messages, textMessages, HCProviders\.readsImages\(/g) || []).length === 3);
+  ok('both Gemini paths send a picture only to a model that sees', (app.match(/sees && m\.images\?\.length\) m\.images\.forEach/g) || []).length === 2);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-shape.js)`);
 process.exit(fail ? 1 : 0);

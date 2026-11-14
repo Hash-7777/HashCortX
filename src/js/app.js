@@ -3530,13 +3530,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const key = (geminiKeyEl.value || "").trim();
       if (!key) throw new Error("Google AI Studio key missing.\nAdd it in Settings → Cloud Models — free at aistudio.google.com");
       const systemMsg = HCAgentShape.systemOf(messages);
-      // Build Gemini parts — supports both text and inlineData images
+      // Build Gemini parts — supports both text and inlineData images, for a model that sees them
+      const sees = HCProviders.readsImages("gemini", modelId), seen = (m) => (m.images?.length && !sees ? HCAgentShape.pictureNote(m, cloudModelLabel(`cloud:gemini:${modelId}`)) : m.content);
       const geminiContents = messages
         .filter(m => m.role !== "system")
         .map(m => {
           const parts = [];
-          if (m.content) parts.push({ text: m.content });
-          if (m.images?.length) m.images.forEach(b64 => parts.push({ inlineData: { mimeType: HCAgentShape.imageMimeFromBase64(b64), data: b64 } }));
+          if (seen(m)) parts.push({ text: seen(m) });
+          if (sees && m.images?.length) m.images.forEach(b64 => parts.push({ inlineData: { mimeType: HCAgentShape.imageMimeFromBase64(b64), data: b64 } }));
           return { role: m.role === "assistant" ? "model" : "user", parts: parts.length ? parts : [{ text: "" }] };
         });
       const body = fitRequest("gemini", "gemini", modelId, {
@@ -3604,7 +3605,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const { res } = await fetchMoonshotApi("/chat/completions", key, () => ({
         method: "POST", referrerPolicy: "no-referrer",
         headers: HCProviders.headersFor("moonshot", key),
-        body: JSON.stringify(fitRequest("openai", "moonshot", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
+        body: JSON.stringify(fitRequest("openai", "moonshot", modelId, { model: modelId, messages: hasImages ? HCAgentShape.withPictures(messages, textMessages, HCProviders.readsImages("moonshot", modelId), cloudModelLabel(`cloud:moonshot:${modelId}`)) : textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
         signal,
       }));
       for await (const delta of parseOpenAISSE(res.body, onUsage, "moonshot", onThinking)) onToken(delta);
@@ -3613,7 +3614,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       // Everyone else speaks the OpenAI shape, from the page or through the app.
       const key = (PROVIDER_KEY_ELEMENTS[provider].value || "").trim();
       if (!key) throw new Error(HCProviders.keyMissing(provider));
-      const msgs = hasImages && HCProviders.readsImages(provider, modelId) ? toOpenAIVision(messages) : textMessages;
+      const msgs = hasImages ? HCAgentShape.withPictures(messages, textMessages, HCProviders.readsImages(provider, modelId), cloudModelLabel(`cloud:${provider}:${modelId}`)) : textMessages;
       const res = await providerPost(provider, key, fitRequest("openai", provider, modelId, { model: modelId, messages: msgs, temperature: temp, stream: true, stream_options: { include_usage: true } }), signal);
       if (!res.ok) throw await httpFailure(provider, res);
       for await (const delta of parseOpenAISSE(res.body, onUsage, provider, onThinking)) onToken(delta);
@@ -5613,10 +5614,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (!keyEl) throw new Error("Unknown provider: " + provider);
     const key = (keyEl.value || "").trim();
     if (!key) throw new Error(HCProviders.keyMissing(provider));
-    if (hasImages && !HCProviders.readsImages(provider, model)) {
-      throw new Error(`${provider}:${model} cannot read pictures. Pick a model that can (OpenAI, Gemini, Anthropic, or a vision model from OpenRouter, NVIDIA or Groq), or send the request without the picture.`);
-    }
-    const requestMessages = hasImages ? toOpenAIVision(messages) : textMessages;
+    const requestMessages = hasImages ? HCAgentShape.withPictures(messages, textMessages, HCProviders.readsImages(provider, model), cloudModelLabel(`cloud:${provider}:${model}`)) : textMessages;   // one that cannot see is told where each picture was (js/agent-shape.js)
     const body = {
       model, messages: requestMessages,
       ...(temperature === null ? {} : { temperature: typeof temperature === "number" ? temperature : 0.7 }),   // null: a model that takes no sampling settings is sent none (js/model-profile.js)
@@ -5738,7 +5736,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (!key) throw new Error("Google AI Studio key missing.");
     // Translate OpenAI-style messages → Gemini contents.
     const systemMsg = HCAgentShape.systemOf(messages);
-    const contents = [];
+    const contents = [], sees = HCProviders.readsImages("gemini", model);   // a model that cannot see is told where each picture was (js/agent-shape.js)
     for (const m of messages) {
       if (m.role === "system") continue;
       if (m.role === "tool") {
@@ -5765,9 +5763,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         });
         continue;
       }
-      const parts = [];
-      if (m.content) parts.push({ text: m.content });
-      if (m.images?.length) m.images.forEach(b64 => parts.push({ inlineData: { mimeType: HCAgentShape.imageMimeFromBase64(b64), data: b64 } }));
+      const parts = [], said = m.images?.length && !sees ? HCAgentShape.pictureNote(m, cloudModelLabel(`cloud:gemini:${model}`)) : m.content;
+      if (said) parts.push({ text: said });
+      if (sees && m.images?.length) m.images.forEach(b64 => parts.push({ inlineData: { mimeType: HCAgentShape.imageMimeFromBase64(b64), data: b64 } }));
       contents.push({
         role: m.role === "assistant" ? "model" : "user",
         parts: parts.length ? parts : [{ text: "" }]

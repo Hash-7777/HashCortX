@@ -355,13 +355,56 @@
     return `${label} API key missing.\nAdd it in Settings → APIs${where}`;
   }
 
+  // ── Which models see pictures ───────────────────────────────────────────
+  //
+  // A provider's own model list is the first word on it: OpenRouter, Kimi,
+  // Mistral, Fireworks, Venice and DeepInfra each say of every model whether
+  // it takes pictures, and js/cloud-model-fetch.js keeps that answer on the
+  // model as `sees`. js/model-limits.js holds it, so a provider that said no
+  // is believed even when the name reads like a model that sees.
+  //
+  // For a model no list has spoken about, the name is all there is. These
+  // read the names the providers give their picture-reading models. A model
+  // left out here is sent the words alone, with a note where each picture was
+  // (js/agent-shape.js), which is safe; a model wrongly put in is sent a
+  // picture it refuses, which ends the request. So a name is only added here
+  // when its maker's own pages say the model takes pictures.
+
+  /** Names that, whoever serves them, belong to a model that reads pictures. */
+  const SEES_BY_NAME = /vision|(?:^|[-_./:])vl(?:$|[-_.:])|vlm|pixtral|llava|llama-?4|gemma-?3(?![-.]?1b)|gemma-?3n|qvq|omni|multimodal|internvl|minicpm-v|molmo|glm-[\d.]+v(?:$|[-:])/i;
+
+  /** What a provider's own naming says, for the ones whose names do not follow the pattern. */
+  const SEES_BY_PROVIDER = {
+    // Every Claude model since the third generation reads pictures.
+    anthropic: (id) => !/claude-(?:2|instant)/i.test(id),
+    // Every Gemini model reads pictures; of the Gemma ones, the pattern above decides.
+    gemini: (id) => /^gemini-/i.test(id),
+    // The 4o, 4.1, 4.5 and 5 families, 4 Turbo, and the full o-series models. Not
+    // 3.5, the first GPT-4, the open-weight models, or the small o1 and o3.
+    openai: (id) => /^(?:chatgpt-4o|gpt-4o|gpt-4\.1|gpt-4\.5|gpt-4-turbo|gpt-5|o1(?!-mini)|o3(?!-mini)|o4)/i.test(id),
+    // Flash reads pictures; the experimental name it replaced still answers.
+    deepseek: (id) => /^deepseek-flash|vision/i.test(id),
+    // Grok 4 and the Grok vision models. Not Grok 3 or the code model.
+    xai: (id) => /^grok-4(?!.*code)|grok-[\d.]+-vision|grok-vision/i.test(id),
+  };
+
+  /** Makers whose own naming is read above, by the prefix a reseller puts on the id. */
+  const MAKER_PREFIX = { openai: 'openai', anthropic: 'anthropic', google: 'gemini', deepseek: 'deepseek', 'x-ai': 'xai' };
+
   /**
-   * Whether a request to this model may carry pictures in the OpenAI shape.
-   * Others are sent the words alone; Gemini and Anthropic have their own shapes.
+   * Whether this model reads pictures: what its provider's list said, else
+   * what its name says. Every request shape the app sends — the OpenAI one,
+   * Anthropic's and Gemini's — carries pictures only to a model this says yes to.
    */
   function readsImages(provider, modelId) {
-    if (provider === 'openai' || provider === 'openrouter' || provider === 'nvidia') return true;
-    return provider === 'groq' && /vision/i.test(String(modelId || ''));
+    const id = String(modelId || '');
+    const limits = typeof window !== 'undefined' ? window.HCModelLimits : null;
+    const listed = limits && limits.seesOf ? limits.seesOf(`cloud:${provider}:${id}`) : undefined;
+    if (typeof listed === 'boolean') return listed;
+    // A reseller such as OpenRouter names a model by its maker, "openai/gpt-4o".
+    const [, maker, rest] = /^([\w-]+)\/(.+)$/.exec(id) || [];
+    const own = SEES_BY_PROVIDER[provider] || (MAKER_PREFIX[maker] && ((m) => SEES_BY_PROVIDER[MAKER_PREFIX[maker]](rest)));
+    return (own ? own(id) : false) || SEES_BY_NAME.test(id);
   }
 
   // ── What came back ──────────────────────────────────────────────────────

@@ -16,6 +16,8 @@
 //   ctx    how many tokens it reads — the question and the answer together
 //   out    the longest answer it can write
 //   tools  whether it can call tools, when the list says
+//   sees   whether it reads pictures, when the list says (js/providers.js
+//          readsImages falls back to the model's name where none does)
 //   free   whether it costs nothing, when the list says
 //
 // A list is also cut down to what can hold a conversation — no speech,
@@ -56,6 +58,7 @@
   const NVIDIA_NOT_CHAT = /reward|detector|parse|deplot|kosmos|clip|\bvila\b|neva|fuyu|calibration|translate|retriever|diffusion|topic-control/i;
 
   const count = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : undefined);
+  const yesNo = (v) => (typeof v === 'boolean' ? v : undefined);
 
   /** A menu entry for a model, with whatever limits its list gave. */
   function entry(provider, id, name, extra = {}) {
@@ -65,6 +68,7 @@
     if (ctx) m.ctx = ctx;
     if (out) m.out = out;
     if (typeof extra.tools === 'boolean') m.tools = extra.tools;
+    if (typeof extra.sees === 'boolean') m.sees = extra.sees;
     if (extra.free) m.free = true;
     if (extra.imageGen) m.imageGen = true;
     return m;
@@ -129,6 +133,8 @@
           out: m.outputTokenLimit,
           // Gemma on this API takes no tools and no system instruction.
           tools: !/^gemma-/i.test(id),
+          // Every Gemini model reads pictures; Gemma's are told by name.
+          sees: /^gemini-/i.test(id) ? true : undefined,
           imageGen: /image/i.test(id),
         }))
         .sort(byName);
@@ -161,10 +167,12 @@
           const free = /:free$/i.test(m.id) || (String(p.prompt) === '0' && String(p.completion) === '0');
           const name = String(m.name || m.id).replace(/\s*\(free\)\s*$/i, '');
           const top = m.top_provider || {};
+          const ins = m.architecture && m.architecture.input_modalities;
           return entry('openrouter', m.id, free ? `${name} (free)` : name, {
             ctx: top.context_length || m.context_length,
             out: top.max_completion_tokens,
             tools: Array.isArray(m.supported_parameters) ? m.supported_parameters.includes('tools') : undefined,
+            sees: Array.isArray(ins) ? ins.includes('image') : undefined,
             free,
           });
         })
@@ -212,7 +220,7 @@
       return models
         .filter((m) => m && typeof m.id === 'string')
         .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
-        .map((m) => entry('anthropic', m.id, m.display_name || prettify(m.id), { ctx: m.max_input_tokens, out: m.max_tokens, tools: true }));
+        .map((m) => entry('anthropic', m.id, m.display_name || prettify(m.id), { ctx: m.max_input_tokens, out: m.max_tokens, tools: true, sees: true }));
     }
 
     /** A list from a provider that refuses a web page, asked for by the app. */
@@ -257,7 +265,7 @@
         const j = await bridgedJson('Kimi Code', 'kimi-code', apiKey);
         return (j.data || [])
           .filter((m) => m && typeof m.id === 'string' && !NOT_CHAT.test(m.id))
-          .map((m) => entry('moonshot', m.id, m.display_name || prettify(m.id), { ctx: m.context_length }));
+          .map((m) => entry('moonshot', m.id, m.display_name || prettify(m.id), { ctx: m.context_length, sees: yesNo(m.supports_image_in) }));
       }
       const { res } = await moonshotApi('/models', apiKey, () => ({
         method: 'GET',
@@ -267,7 +275,7 @@
       const j = await res.json();
       const byId = new Map((j.data || []).filter((m) => m && typeof m.id === 'string').map((m) => [m.id, m]));
       return sortMoonshotIds([...byId.keys()].filter((id) => !NOT_CHAT.test(id) && !/image/i.test(id)))
-        .map((id) => entry('moonshot', id, prettify(id), { ctx: byId.get(id).context_length }));
+        .map((id) => entry('moonshot', id, prettify(id), { ctx: byId.get(id).context_length, sees: yesNo(byId.get(id).supports_image_in) }));
     }
 
     async function fetchDeepSeekModels(apiKey) {
@@ -292,6 +300,7 @@
         .map((m) => entry('mistral', m.id, prettify(m.id), {
           ctx: m.max_context_length,
           tools: m.capabilities ? m.capabilities.function_calling === true : undefined,
+          sees: m.capabilities ? yesNo(m.capabilities.vision) : undefined,
         }))
         .sort(byName);
     }
@@ -341,7 +350,7 @@
         limits: (m) => ({ ctx: m.context_length, out: m.max_output_length }),
       }),
       fireworks: openAiShaped('fireworks', 'https://api.fireworks.ai/inference/v1/models', {
-        limits: (m) => ({ ctx: m.context_length, tools: m.supports_tools }),
+        limits: (m) => ({ ctx: m.context_length, tools: m.supports_tools, sees: yesNo(m.supports_image_input) }),
       }),
       zai: openAiShaped('zai', 'https://api.z.ai/api/paas/v4/models'),
       qwen: openAiShaped('qwen', 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models'),
@@ -350,7 +359,7 @@
         // Of 192 addresses here, 107 hold a conversation. The rest make
         // pictures, video, speech or embeddings, and only the tags say so.
         keep: (m) => ((m.metadata && m.metadata.tags) || []).includes('chat'),
-        limits: (m) => ({ ctx: m.metadata && m.metadata.context_length, out: m.metadata && m.metadata.max_tokens }),
+        limits: (m) => ({ ctx: m.metadata && m.metadata.context_length, out: m.metadata && m.metadata.max_tokens, sees: ((m.metadata && m.metadata.tags) || []).includes('vision') || undefined }),
       }),
       novita: openAiShaped('novita', 'https://api.novita.ai/v3/openai/models', {
         keep: (m) => !m.model_type || m.model_type === 'chat',
@@ -358,7 +367,7 @@
       }),
       venice: openAiShaped('venice', 'https://api.venice.ai/api/v1/models', {
         keep: (m) => !m.type || m.type === 'text',
-        limits: (m) => ({ ctx: m.context_length }),
+        limits: (m) => ({ ctx: m.context_length, sees: yesNo(m.model_spec && m.model_spec.capabilities && m.model_spec.capabilities.supportsVision) }),
       }),
     };
   }

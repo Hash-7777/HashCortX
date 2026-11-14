@@ -283,7 +283,7 @@ console.log('\nThe Coder is wired to it:');
   const boot = src('boot.js');
   const routerSrc = src('js', 'code', 'router.js');
   ok('the router loads before the panel, and uses the shared rules only as they are handed to it', boot.indexOf("'/js/code/router.js'") > -1 && boot.indexOf("'/js/code/router.js'") < boot.indexOf("'/js/app.js'") && !/window\.(HCChatFailover|HCModelRoutes)/.test(routerSrc));
-  ok('a model that cannot read pictures says so in plain words', !/PDF page images/.test(src('js', 'app.js')) && /cannot read pictures\. Pick a model that can/.test(src('js', 'app.js')));
+  ok('a model that cannot read pictures is told in plain words where each one was, and the run goes on', !/PDF page images/.test(src('js', 'app.js')) && /HCAgentShape\.withPictures\(messages, textMessages, HCProviders\.readsImages\(provider, model\)/.test(src('js', 'app.js')) && /cannot see pictures, so it was not sent/.test(src('js', 'agent-shape.js')));
   ok('this check is part of npm run check', /npm run check:code-router/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 }
 

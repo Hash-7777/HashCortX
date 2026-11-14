@@ -74,22 +74,24 @@ HashCortX/
 │   ├── js/                          app.js, and the pieces taken out of it and
 │   │   │                            out of the modes. Each piece is pure where
 │   │   │                            it can be and has a check file of its own
-│   │   ├── app.js            6,404  core: state, chat, agents, tools, providers
+│   │   ├── app.js            6,402  core: state, chat, agents, tools, providers
 │   │   ├── request-cap.js      139  the cap on cloud AI requests: 30 a minute, 6 at once
-│   │   ├── providers.js        567  each provider's endpoint and auth, plus
+│   │   ├── providers.js        610  each provider's endpoint and auth, plus
 │   │   │                            Moonshot's two hosts and account systems,
-│   │   │                            which three the app sends for itself, and
-│   │   │                            the tokens each reports, cached ones apart
-│   │   ├── cloud-model-fetch.js 367 asking each provider what models it has,
-│   │   │                            with each model's limits
+│   │   │                            which three the app sends for itself,
+│   │   │                            which models read pictures, and the
+│   │   │                            tokens each reports, cached ones apart
+│   │   ├── cloud-model-fetch.js 376 asking each provider what models it has,
+│   │   │                            with each model's limits and whether
+│   │   │                            its list says it reads pictures
 │   │   ├── cloud-catalogue.js  113  keeping those lists, and what each provider
 │   │   │                            answered last time
-│   │   ├── model-limits.js     339  how long an answer each request asks for,
+│   │   ├── model-limits.js     343  how long an answer each request asks for,
 │   │   │                            the limits a provider names when it refuses,
 │   │   │                            what a conversation is sized by, and
 │   │   │                            whether a model can hold a whole job
 │   │   │                            before it is started on it
-│   │   ├── cloud-model-memory.js 150 the model list a provider gave last time,
+│   │   ├── cloud-model-memory.js 151 the model list a provider gave last time,
 │   │   │                            and when to ask again after it failed
 │   │   ├── model-names.js      189  provider, display name, size class
 │   │   ├── model-now.js        141  the model answering now, in the title bar
@@ -138,7 +140,7 @@ HashCortX/
 │   │   │                            with tool work, the sampling it takes,
 │   │   │                            and whether it is rated strong enough
 │   │   │                            to start sub-agents
-│   │   ├── agent-shape.js      851  images, tools and tool results per provider,
+│   │   ├── agent-shape.js      883  images, tools and tool results per provider,
 │   │   │                            a model that cannot take tools held by
 │   │   │                            Ollama to one answer shape, or told them in
 │   │   │                            words, carrying on an answer that was
@@ -596,10 +598,10 @@ This is the seam to respect when adding a mode: **never import across mode files
 
 ## Known architectural debt
 
-- `app.js` is still a 6,404-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, the reading of a streamed answer, and of a PubMed search's papers. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
+- `app.js` is still a 6,402-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, the reading of a streamed answer, and of a PubMed search's papers. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The HashCoder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 12,877 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 12,915 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.

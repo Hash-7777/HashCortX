@@ -225,6 +225,56 @@ console.log('\nThe two lists the app asks for itself:');
   ok('NVIDIA, less the scoring, search, safety and document models', ids(nv).join() === 'cloud:nvidia:vendor/enormous-99b-instruct,cloud:nvidia:vendor/future-model-9', ids(nv).join());
 }
 
+console.log('\nWhether a model reads pictures is kept where a list says so, and left unsaid where it does not:');
+{
+  on([/openrouter\.ai\/api\/v1\/models$/, respond(200, { data: [
+    { id: 'vendor/sees:free', name: 'Sees', architecture: { input_modalities: ['text', 'image'], output_modalities: ['text'] }, pricing: { prompt: '0', completion: '0' } },
+    { id: 'vendor/words:free', name: 'Words', architecture: { input_modalities: ['text'], output_modalities: ['text'] }, pricing: { prompt: '0', completion: '0' } },
+    { id: 'vendor/unsaid:free', name: 'Unsaid', pricing: { prompt: '0', completion: '0' } },
+  ] })]);
+  const or = await F.openrouter('');
+  ok('OpenRouter: a model listed as taking pictures sees, one listed as words only does not', find(or, 'vendor/sees:free').sees === true && find(or, 'vendor/words:free').sees === false);
+  ok('...and a model listed with no inputs is left to its name', find(or, 'vendor/unsaid:free').sees === undefined);
+  on([/api\.moonshot\.ai/, respond(200, { data: [{ id: 'kimi-sees', supports_image_in: true }, { id: 'kimi-words', supports_image_in: false }, { id: 'kimi-unsaid' }] })]);
+  const kimi = await F.moonshot('k');
+  ok('Kimi, by supports_image_in', find(kimi, 'kimi-sees').sees === true && find(kimi, 'kimi-words').sees === false && find(kimi, 'kimi-unsaid').sees === undefined);
+  on([/api\.kimi\.com\/coding\/v1\/models$/, respond(200, { data: [{ id: 'kimi-for-coding', supports_image_in: true }] })]);
+  ok('...a Kimi Code key\'s list as well', (await F.moonshot('sk-kimi-x'))[0].sees === true);
+  on([/api\.mistral\.ai\/v1\/models$/, respond(200, { data: [{ id: 'mistral-sees', capabilities: { completion_chat: true, vision: true } }, { id: 'mistral-words', capabilities: { completion_chat: true, vision: false } }] })]);
+  const mis = await F.mistral('k');
+  ok('Mistral, by its vision capability', find(mis, 'mistral-sees').sees === true && find(mis, 'mistral-words').sees === false);
+  on([/api\.fireworks\.ai/, respond(200, { data: [{ id: 'fw/sees', supports_image_input: true }, { id: 'fw/words', supports_image_input: false }] })]);
+  const fw = await F.fireworks('k');
+  ok('Fireworks, by supports_image_input', find(fw, 'fw/sees').sees === true && find(fw, 'fw/words').sees === false);
+  on([/api\.venice\.ai/, respond(200, { data: [{ id: 'venice-sees', type: 'text', model_spec: { capabilities: { supportsVision: true } } }, { id: 'venice-words', type: 'text', model_spec: { capabilities: { supportsVision: false } } }] })]);
+  const ven = await F.venice('k');
+  ok('Venice, by supportsVision', find(ven, 'venice-sees').sees === true && find(ven, 'venice-words').sees === false);
+  on([/api\.deepinfra\.com/, respond(200, { data: [{ id: 'di/sees', metadata: { tags: ['chat', 'vision'] } }, { id: 'di/words', metadata: { tags: ['chat'] } }] })]);
+  const di = await F.deepinfra('k');
+  ok('DeepInfra, by its vision tag, leaving the rest to their names', find(di, 'di/sees').sees === true && find(di, 'di/words').sees === undefined);
+  on([/v1\/models\?limit=1000$/, respond(200, { data: [{ id: 'claude-fictional-9', created_at: '2099-01-01T00:00:00Z' }], has_more: false })]);
+  ok('every Claude model sees', (await F.anthropic('k'))[0].sees === true);
+  const model = (id) => ({ name: `models/${id}`, supportedGenerationMethods: ['generateContent'] });
+  on([/models\?pageSize=1000$/, respond(200, { models: [model('gemini-9-pro'), model('gemma-4-31b-it')] })]);
+  const gem = await F.gemini('k');
+  ok('every Gemini model sees; Gemma is left to its name', find(gem, 'gemini-9-pro').sees === true && find(gem, 'gemma-4-31b-it').sees === undefined);
+  on([/api\.deepseek\.com/, respond(200, { data: [{ id: 'deepseek-v9' }] })]);
+  ok('a list that says nothing says nothing', (await F.deepseek('k'))[0].sees === undefined);
+
+  // And what the lists said reaches the place readsImages asks, and survives a restart.
+  const store = new Map();
+  const memBox = { window: {}, localStorage: { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) } };
+  vm.createContext(memBox);
+  vm.runInContext(readFileSync(join(root, 'src', 'js', 'cloud-model-memory.js'), 'utf8'), memBox, { filename: 'cloud-model-memory.js' });
+  vm.runInContext(readFileSync(join(root, 'src', 'js', 'model-limits.js'), 'utf8'), memBox, { filename: 'model-limits.js' });
+  memBox.window.HCCloudModelMemory.remember('openrouter', or);
+  const back = memBox.window.HCCloudModelMemory.recall('openrouter') || [];
+  ok('a saved list keeps whether each model sees', back.find((m) => m.value.endsWith(':vendor/sees:free'))?.sees === true && back.find((m) => m.value.endsWith(':vendor/words:free'))?.sees === false && !('sees' in (back.find((m) => m.value.endsWith(':vendor/unsaid:free')) || { sees: 1 })));
+  const L = memBox.window.HCModelLimits;
+  for (const m of or) L.remember(m.value, m);
+  ok('the limits module answers what the list said, and nothing for a model it did not speak of', L.seesOf('cloud:openrouter:vendor/sees:free') === true && L.seesOf('cloud:openrouter:vendor/words:free') === false && L.seesOf('cloud:openrouter:vendor/unsaid:free') === undefined);
+}
+
 console.log('\nA provider that refuses says why, rather than answering with nothing:');
 for (const p of ['groq', 'gemini', 'openrouter', 'cerebras', 'openai', 'anthropic', 'moonshot', 'deepseek', 'mistral', 'samba', 'nvidia']) {
   on([/./, respond(401, { error: { message: 'Invalid API Key' } })]);

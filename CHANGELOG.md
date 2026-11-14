@@ -8,6 +8,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **A picture reaches every model that can see it, and never stops a
+  conversation with one that cannot.** Whether a cloud model reads pictures
+  is taken from its provider's own model list where that list says so
+  (OpenRouter, Kimi, Mistral, Fireworks, Venice and DeepInfra), and from
+  the model's name otherwise, read by its maker's naming even when a
+  reseller serves it. DeepSeek Flash, the Kimi models its list marks as
+  seeing, Grok 4, and the vision models other providers serve now get the
+  pictures sent to them, and HashCoder no longer treats Gemini and Claude as unable to
+  see. A model that cannot see is sent the conversation without the
+  picture, with a short note where it was saying it was not sent; before,
+  one picture anywhere in a conversation made every later message to that
+  model fail.
+
 ## [4.0.0] — 2026-11-14
 
 Shows its work. Every chat agent shows what it searched and read, marks the

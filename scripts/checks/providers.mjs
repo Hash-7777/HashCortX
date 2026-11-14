@@ -166,11 +166,29 @@ console.log('\nA request with no key says whose key and where to get one:');
   ok('a provider nobody listed is still named', /^nope API key missing/.test(P.keyMissing('nope')));
 }
 
-console.log('\nPictures go only to models that read them in this shape:');
+console.log('\nPictures go only to models that read them:');
 {
-  ok('OpenAI, OpenRouter and NVIDIA do', ['openai', 'openrouter', 'nvidia'].every((p) => P.readsImages(p, 'any')));
-  ok('a Groq model only when it is a vision model', P.readsImages('groq', 'llama-vision-x') && !P.readsImages('groq', 'llama-3.3-70b'));
-  ok('the rest are sent the words alone', ['cerebras', 'samba', 'deepseek', 'mistral', 'moonshot'].every((p) => !P.readsImages(p, 'vision-model')));
+  const sees = (p, id) => P.readsImages(p, id) === true;
+  const blind = (p, id) => P.readsImages(p, id) === false;
+  ok('every Claude model since the third generation', sees('anthropic', 'claude-sonnet-5') && sees('anthropic', 'claude-3-haiku-20240307') && blind('anthropic', 'claude-instant-1.2'));
+  ok('every Gemini model, and Gemma 3 but not its smallest size', sees('gemini', 'gemini-3-flash') && sees('gemini', 'gemma-3-27b-it') && blind('gemini', 'gemma-3-1b-it') && blind('gemini', 'gemma-2-9b-it'));
+  ok('the OpenAI models that take pictures', ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1-nano', 'gpt-5', 'gpt-5-mini', 'o1', 'o3', 'o4-mini', 'chatgpt-4o-latest', 'gpt-4-turbo'].every((id) => sees('openai', id)));
+  ok('...and not the ones that read words only', ['gpt-3.5-turbo', 'gpt-4', 'gpt-oss-120b', 'o1-mini', 'o3-mini'].every((id) => blind('openai', id)));
+  ok('DeepSeek Flash, and none of the other DeepSeek models', sees('deepseek', 'deepseek-flash') && sees('deepseek', 'deepseek-v4-flash-vision-exp') && blind('deepseek', 'deepseek-v4-pro') && blind('deepseek', 'deepseek-chat') && blind('deepseek', 'deepseek-reasoner'));
+  ok('Grok 4 and the Grok vision models, not Grok 3 or the code model', sees('xai', 'grok-4') && sees('xai', 'grok-4-fast-reasoning') && sees('xai', 'grok-2-vision-1212') && blind('xai', 'grok-3') && blind('xai', 'grok-code-fast-1'));
+  ok('whoever serves them, models named as seeing', [['groq', 'meta-llama/llama-4-scout-17b-16e-instruct'], ['nvidia', 'meta/llama-3.2-11b-vision-instruct'], ['nvidia', 'nvidia/nemotron-nano-12b-v2-vl'], ['qwen', 'qwen2.5-vl-72b-instruct'], ['qwen', 'qvq-max'], ['zai', 'glm-4.5v'], ['mistral', 'pixtral-large-latest'], ['together', 'Qwen/Qwen2.5-VL-72B-Instruct'], ['samba', 'Llama-4-Maverick-17B-128E-Instruct'], ['cloudflare', '@cf/llava-hf/llava-1.5-7b-hf']].every(([p, id]) => sees(p, id)));
+  ok('...and words only for a model whose name says nothing of pictures', [['groq', 'llama-3.3-70b-versatile'], ['nvidia', 'meta/llama-3.1-405b-instruct'], ['cerebras', 'qwen-3-32b'], ['zai', 'glm-4.6'], ['mistral', 'mistral-large-latest'], ['moonshot', 'kimi-k2-0905-preview'], ['openrouter', 'some/model']].every(([p, id]) => blind(p, id)));
+  ok('a reseller\'s id is read by its maker\'s naming', sees('openrouter', 'openai/gpt-4o') && sees('openrouter', 'anthropic/claude-sonnet-4.5') && sees('openrouter', 'google/gemini-2.5-flash') && sees('nvidia', 'deepseek/deepseek-flash') && blind('openrouter', 'openai/gpt-oss-120b') && blind('openrouter', 'deepseek/deepseek-v4-pro'));
+  ok('a version number is not read as a vision model', blind('together', 'some-model-v1') && blind('nvidia', 'nvidia/llama-3.1-nemotron-70b-instruct'));
+
+  // What a provider's own list said comes first, both ways.
+  const said = new Map([['cloud:openrouter:some/model', true], ['cloud:mistral:pixtral-large-latest', false]]);
+  const before = sandbox.window.HCModelLimits;
+  sandbox.window.HCModelLimits = { seesOf: (v) => said.get(v) };
+  ok('a model its provider\'s list says sees, sees', sees('openrouter', 'some/model'));
+  ok('a model its provider\'s list says does not, does not, whatever its name', blind('mistral', 'pixtral-large-latest'));
+  ok('a model no list spoke of falls back to its name', sees('openai', 'gpt-4o') && blind('openai', 'gpt-3.5-turbo'));
+  sandbox.window.HCModelLimits = before;
 }
 
 console.log('\nHeaders carry the key the way each provider expects:');

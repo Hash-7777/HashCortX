@@ -243,7 +243,9 @@ const LINE_BUDGET = {
   // js/chat/notice.js, not a paragraph of its instructions.
   // 6404, down 13: a chat agent's conversation is fitted to its model's
   // window in js/chat/trim.js, not cut to a fixed size here.
-  'js/app.js': 6404,
+  // 6402, down 2: a request carrying pictures is shaped for the model in
+  // js/agent-shape.js withPictures, instead of refused here.
+  'js/app.js': 6402,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
