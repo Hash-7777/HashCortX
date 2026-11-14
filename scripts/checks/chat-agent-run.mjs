@@ -66,7 +66,7 @@ const words = (content) => ({ content, tool_calls: [] });
 const shaped = (names) => names.map((name) => ({ type: 'function', function: { name, description: name, parameters: { type: 'object', properties: {} } } }));
 
 /** One chat run: `script(messages, n, tools)` is the model, `results[name]` what each tool answers. */
-async function chatRun({ script, queue = null, added = null, agent = { id: 'builtin_url_reader' }, names = ['fetch_url', 'web_search'], results = {}, history = [], signal, fallback, request = 'Read https://site.example/hours and tell me when the bakery opens.' } = {}) {
+async function chatRun({ script, queue = null, added = null, assistant = {}, agent = { id: 'builtin_url_reader' }, names = ['fetch_url', 'web_search'], results = {}, history = [], signal, fallback, request = 'Read https://site.example/hours and tell me when the bakery opens.' } = {}) {
   const coder = { request: 'HashCoder request', asks: ['x', 'y', 'z'], plan: { steps: [] }, said: 'HashCoder said', TOOL_DEFINITIONS: [] };
   const coderBefore = json(coder);
   sandbox.HC = { code: coder, guard: { noteBlocked: () => {} }, undo: { lastFor: () => null } };
@@ -74,7 +74,7 @@ async function chatRun({ script, queue = null, added = null, agent = { id: 'buil
   const messages = [{ role: 'system', content: 'You read web pages for the person.' }, ...history, { role: 'user', content: request }];
   let n = 0;
   const out = await R.run({
-    agent, assistant: {}, queue, added, messages, tools: shaped(names), tracker, temperature: 0.3, signal,
+    agent, assistant, queue, added, messages, tools: shaped(names), tracker, temperature: 0.3, signal,
     onStatus: (t, k) => statuses.push([t, k]), onFinalToken: () => {}, model: 'cloud:groq:some-model', request,
     call: async (m, t) => { n++; sent.push({ msgs: m.map((x) => ({ ...x })), tools: t.map((x) => x.function.name) }); const r = script(m, n, t); if (r instanceof Error) throw r; return r; },
     runTool: async (name, args, onStatus, tr) => { ran.push(name); const r = results[name] ?? JSON.stringify({ text: `${name} result` }); tr.push({ name, ok: !/"error"/.test(r) }); return r; },
@@ -173,6 +173,19 @@ await (async () => {
   ok('...or last, when the reply is not in it', JSON.stringify(none.map((m) => m.content)) === '["a","b"]');
   const app = src('js', 'app.js');
   ok('the chat hands its queue to the run, and shows a message taken from it', /queue: chatQueue, added: \(text\) => \{ window\.HCChatAgentRun\.placeAdded\(state\.messages, assistant, text\); render\(\); \}/.test(app));
+})();
+
+console.log('\nA reply with a view:');
+await (async () => {
+  if (typeof R.run !== 'function') return;
+  const told = 'The bakery opens at seven; call 020 7946 0321.';
+  const viewed = { view: { v: 1 } };
+  const r = await chatRun({ assistant: viewed, request: 'When does the bakery open?', script: (m, n) => (n === 1 ? turnOf(callOf('fetch_url', { url: 'https://site.example/hours' })) : words(told)) });
+  ok('what is not confirmed is kept for the view to show, and the checks are said to have run', Array.isArray(viewed.viewFacts?.unsourced) && viewed.viewFacts.unsourced.some((u) => /0321/.test(u.shown)) && viewed.viewFacts.checked === true, JSON.stringify(viewed.viewFacts));
+  ok('...and is not written in italics under the answer as well', !/Not confirmed by anything/.test(String(r.out)), String(r.out));
+  const plainReply = {};
+  const p = await chatRun({ assistant: plainReply, request: 'When does the bakery open?', script: (m, n) => (n === 1 ? turnOf(callOf('fetch_url', { url: 'https://site.example/hours' })) : words(told)) });
+  ok('a reply with no view keeps the line in italics', /Not confirmed by anything/.test(String(p.out)), String(p.out));
 })();
 
 console.log('\nAn agent a person made answers from what it knows:');

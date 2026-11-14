@@ -29,6 +29,7 @@ const json = (x) => JSON.stringify(x);
 const sandbox = { console };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
+for (const f of ['fences.js', 'code/asks.js', 'code/verify.js', 'code/facts.js', 'chat/finish.js', 'chat/view-model.js']) vm.runInContext(src('js', ...f.split('/')), sandbox, { filename: f });
 try { vm.runInContext(src('js', 'chat', 'view.js'), sandbox, { filename: 'view.js' }); } catch (e) { ok('view.js loads', false, String(e && e.message)); }
 const V = sandbox.HCChatView || {};
 
@@ -61,6 +62,44 @@ console.log('\nThe foot of a finished reply:');
   ok('a reply still working has no foot', json(V.footRows?.({ ...done, done: false })) === '[]');
   ok('one part at a glance is not a panel; no sources numbered, no sources row', json(V.footRows?.({ ...done, glance: [{}], sources: [{}] })) === '["grounding","caution","how"]');
   ok('an answer from what it knows, with no steps, has no foot at all', json(V.footRows?.({ done: true, stations: ['understand'], glance: [], grounding: null, sources: [], caution: [] })) === '[]');
+}
+
+console.log('\nA reply\'s steps, as the chat records them:');
+{
+  const VM = sandbox.HCChatViewModel;
+  const a = { view: VM.start('When was it first lit? Who built it? Is it open to visitors?', 0) };
+  const note = (type, label, data) => V.note?.(a, type, label, data);
+  note('start', 'Agent Researcher started', {});
+  note('tool_call', 'wikipedia', { query: 'Larkfield Lighthouse' });
+  ok('a tool called is a step', a.view.now === 'search' && /Larkfield Lighthouse/.test(V.sayText(a.view)));
+  note('tool_result', 'wikipedia', { results: [{ title: 'L', snippet: 'It was first lit in 1874 and built by the harbour board.', url: 'https://en.wikipedia.org/wiki/L' }] });
+  ok('...and what it returned a source', a.view.sources.length === 1);
+  note('thinking', 'Step 2'); note('running', 'Reading page: x');
+  ok('the chat\'s own status lines are not steps', a.view.now === 'search' && a.view.checks.length === 0);
+  note('thinking', 'Sent back: details nothing given or read says');
+  ok('an app check-in is', a.view.now === 'check' && a.view.checks.length === 1);
+  note('warn', 'Sent back: details nothing given or read says');
+  ok('...once, though the chat records it twice', a.view.checks.length === 1);
+  V.writing?.(a);
+  ok('the answer arriving is writing', a.view.now === 'write');
+  a.content = 'It was first lit in 1874 and built by the harbour board.';
+  a.viewFacts = { unsourced: [], checked: true };
+  V.finish?.(a);
+  ok('the run done, the record is finished from the answer and what the checks found', a.view.done === true && a.view.chips.length === 1 && /checked against what it read/.test(V.sayText(a.view)));
+  const none = {}; V.note?.(none, 'tool_call', 'wikipedia', {}); V.writing?.(none); V.finish?.(none);
+  ok('a reply with no record is left alone', !('view' in none));
+}
+
+console.log('\nWhere the chat uses it (app.js):');
+{
+  const app = src('js', 'app.js');
+  ok('an agent\'s reply gets its record when the agent starts, from the request', /assistant\.view = window\.HCChatViewModel\?\.start\(seedText\); recordAgentEvent\(assistant, "start",/.test(app));
+  ok('every step the chat records reaches it', /assistant\.runEvents\.push\(\{ ts: Date\.now\(\), type, label: String\(label \|\| ""\), data \}\); window\.HCChatView\?\.note\(assistant, type, label, data\);/.test(app));
+  ok('a reply with a view says nothing in its bubble about each step: the view does', /if \(!assistant\.view\) pulse\(label, agentToolNames\(activeAgent\)\.join\(" · "\)\);/.test(app));
+  ok('the first word of the answer is writing', /if \(!assistant\.firstTokenAt\) \{ assistant\.firstTokenAt = Date\.now\(\); window\.HCChatView\?\.writing\(assistant\); \}/.test(app));
+  ok('the run done, the record is finished before anything is added under the answer', /window\.HCChatView\?\.finish\(assistant\); window\.HCChatTrim\?\.tell\(assistant\); window\.HCAgentNotice\?\.add\(activeAgent, assistant\);/.test(app));
+  ok('a reply drawn gets its chips, its head and its foot, live or saved', /bubble\.appendChild\(body\); if \(m\.view\) window\.HCChatView\?\.chips\(body, m\.view\);/.test(app) && /wrap\.appendChild\(av\); wrap\.appendChild\(bubble\); window\.HCChatView\?\.mount\(wrap, bubble, m\);\n\s*if \(pendingFoot\)/.test(app));
+  ok('the record is kept when the conversation is saved', /view: m\.view \|\| undefined,/.test(app));
 }
 
 console.log('\nIts marks and styles:');

@@ -199,31 +199,107 @@
       parts.push(`<div class="cv-sources">${m.sources.filter((s) => s.n).sort((a, b) => a.n - b.n).map((s) => `<div class="cv-source" data-n="${s.n}" tabindex="0"><span class="cv-num">${s.n}</span><svg class="cv-thumb cv-thumb-s" viewBox="0 0 34 42" aria-hidden="true"><rect x="1" y="1" width="32" height="40" rx="4"/><rect class="cv-thumb-bar" x="1.5" y="1.5" width="31" height="7" rx="3.5"/><path d="M6 15h20M6 20h22M6 25h14M6 30h18"/></svg><span class="cv-source-t"><span class="cv-site">${icon('globe')}<span>${esc(s.site || s.label)}</span></span><span class="cv-title">${esc(s.title || s.label)}</span></span></div>`).join('')}</div>`);
     }
     if (rows.includes('caution')) parts.push(`<div class="cv-caution">${icon('unsure')}<span><b>Check before relying on it</b> · not in anything it read: ${m.caution.map(esc).join(', ')}.</span></div>`);
-    if (rows.includes('how')) parts.push(`<div class="cv-actions"><button type="button" class="cv-how" aria-expanded="false">${icon('down')}<span>Show how</span></button>${m.took != null ? `<span class="cv-took">${icon('clock')}<span>${took(m.took)}</span></span>` : ''}</div>`);
+    if (rows.includes('how')) parts.push(`<div class="cv-actions"><button type="button" class="cv-how" aria-expanded="false">${icon('down')}<span>Show how</span></button></div>`);
     el.innerHTML = parts.join('');
     return el;
   }
 
-  /** Numbered chips after the answer's sentences a source backs, each located by its sentence's last words. */
+  /**
+   * Numbered chips after the answer's sentences a source backs, each located
+   * by its sentence's last words in the text as read, whatever bold or code
+   * marks split it, and searched for after the one before. The chip and the
+   * word before it are kept on one line.
+   */
   function chips(body, m) {
     if (!body || !m || !Array.isArray(m.chips)) return 0;
-    let placed = 0;
+    const NF = window.NodeFilter;
+    let placed = 0, from = 0;
     for (const c of m.chips) {
-      const NF = window.NodeFilter;
-      const walker = document.createTreeWalker(body, NF.SHOW_TEXT, { acceptNode: (n) => (n.parentElement && n.parentElement.closest('pre, code, .cv-chip') ? NF.FILTER_REJECT : NF.FILTER_ACCEPT) });
-      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-        const at = n.nodeValue.indexOf(c.tail);
-        if (at < 0) continue;
-        const rest = n.splitText(at + c.tail.length);
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = `cv-chip${c.warn ? ' warn' : ''}`; b.dataset.n = String(c.n); b.textContent = String(c.n);
-        b.setAttribute('aria-label', c.warn ? 'Not confirmed' : `Source ${c.n}`);
-        rest.parentNode.insertBefore(b, rest);
-        placed++;
-        break;
-      }
+      const walker = document.createTreeWalker(body, NF.SHOW_TEXT, { acceptNode: (n) => (n.parentElement && n.parentElement.closest('pre, .cv-chip') ? NF.FILTER_REJECT : NF.FILTER_ACCEPT) });
+      const nodes = [];
+      let text = '';
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) { nodes.push({ n, at: text.length }); text += n.nodeValue; }
+      const at = text.indexOf(c.tail, from);
+      if (at < 0 || !c.tail) continue;
+      const stop = at + c.tail.length;
+      const last = nodes.filter((x) => x.at < stop).pop();
+      if (!last) continue;
+      const node = last.n, off = stop - last.at;
+      const rest = node.splitText(off);
+      const ws = node.nodeValue.search(/\S+$/);
+      const word = ws > 0 ? node.splitText(ws) : node;
+      const keep = document.createElement('span');
+      keep.className = 'cv-keep';
+      rest.parentNode.insertBefore(keep, rest);
+      keep.appendChild(word);
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = `cv-chip${c.warn ? ' warn' : ''}`; b.dataset.n = String(c.n); b.textContent = String(c.n);
+      b.setAttribute('aria-label', c.warn ? 'Not confirmed' : `Source ${c.n}`);
+      keep.appendChild(b);
+      from = stop;
+      placed++;
     }
     return placed;
+  }
+
+  // ── The chat's side: its records in, a reply's view out ─────────────
+
+  /** One event the chat records for a reply (recordAgentEvent), applied to its record: tool calls and results, and the app's check-ins once each. */
+  function apply(view, type, label, data) {
+    const VM = window.HCChatViewModel;
+    if (!view || !VM || view.done) return false;
+    if (type === 'tool_call') VM.toolCall(view, label, data);
+    else if (type === 'tool_result') VM.toolResult(view, label, data);
+    else if ((type === 'thinking' || type === 'warn') && /^Sent back:/.test(String(label || ''))) { if (view.checks[view.checks.length - 1] === label) return false; VM.check(view, label); }
+    else return false;
+    return true;
+  }
+
+  /** The live head of the reply being written, in the last reply on screen. */
+  function liveHead(assistant) {
+    if (typeof document === 'undefined') return null;
+    const wrap = document.querySelector('#messages .msg.assistant:last-of-type');
+    if (!wrap) return null;
+    if (!assistant._cvHead) assistant._cvHead = head();
+    const bubble = wrap.querySelector('.bubble');
+    if (assistant._cvHead.parentNode !== wrap && bubble) wrap.insertBefore(assistant._cvHead, bubble);
+    return assistant._cvHead;
+  }
+
+  /** The chat recorded an event for a reply: its record, and its live head. */
+  function note(assistant, type, label, data) {
+    if (!assistant || !assistant.view) return;
+    if (type !== 'start' && !apply(assistant.view, type, label, data)) return;
+    const h = liveHead(assistant);
+    if (h) update(h, assistant.view, { live: true });
+  }
+
+  /** The answer has begun to arrive. */
+  function writing(assistant) {
+    const VM = window.HCChatViewModel;
+    if (!assistant || !assistant.view || !VM || assistant.view.done) return;
+    VM.writing(assistant.view);
+    const h = liveHead(assistant);
+    if (h) update(h, assistant.view, { live: true });
+  }
+
+  /** The run is done: the record finished from the answer and what the checks found (viewFacts). */
+  function finish(assistant) {
+    const VM = window.HCChatViewModel;
+    if (!assistant || !assistant.view || !VM || assistant.view.done) return;
+    const f = assistant.viewFacts || {};
+    VM.finish(assistant.view, String(assistant.content || ''), { unsourced: f.unsourced || [], checked: !!f.checked, ended: Date.now() });
+    if (assistant._cvHead) update(assistant._cvHead, assistant.view, { live: false });
+  }
+
+  /** A reply drawn: its head before its bubble (the live one while it is written) and its foot after, once done. */
+  function mount(wrap, bubble, m) {
+    if (!wrap || !bubble || !m || !m.view) return;
+    const h = m._cvHead || update(head(), m.view, { live: false });
+    if (!m.view.done) m._cvHead = h;
+    wrap.insertBefore(h, bubble);
+    const f = foot(m.view);
+    if (f) bubble.after(f);
   }
 
   // A chip lights its sentence's chips and its source, within its reply; "Show how" opens the head again.
@@ -249,5 +325,5 @@
     });
   }
 
-  window.HCChatView = { ICONS, NAMES, stationsOf, sayText, linksOf, footRows, head, update, foot, chips };
+  window.HCChatView = { ICONS, NAMES, stationsOf, sayText, linksOf, footRows, head, update, foot, chips, apply, note, writing, finish, mount };
 })();

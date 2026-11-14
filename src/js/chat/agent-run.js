@@ -131,7 +131,10 @@
     if (!String(text || '').trim() && !(d.signal && d.signal.aborted) && d.closing) {
       try { text = ((await d.call([...messages, { role: 'user', content: d.closing }], [], d.temperature, d.signal)) || {}).content || ''; } catch (e) { d.record(d.assistant, 'error', `Could not write the final answer: ${(e && e.message) || e}`); }
     }
-    const left = F.leftLine(found);
+    // A reply with a view shows what is not confirmed in its foot (js/chat/view.js): it is kept for it, and only the rest is said in italics.
+    const viewed = !!(d.assistant && d.assistant.view);
+    if (viewed) d.assistant.viewFacts = { unsourced: (found && found.unsourced) || [], checked: true };
+    const left = F.leftLine(viewed && found ? Object.assign({}, found, { unsourced: [] }) : found);
     let final = String(text || '');
     // Nothing written: a fact it saved is said to be saved, as the chat's older loop said it; otherwise that it wrote nothing.
     const saved = (d.tracker || []).filter((t) => t && t.name === 'remember_fact' && t.ok).length;

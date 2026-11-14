@@ -10,6 +10,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A chat agent shows its work while it answers, and how it got there
+  once it is done.** Above the reply, a short line says what it is doing
+  now (searching for what, reading which site, checking the answer), with
+  the steps it has taken drawn as a path and the sources it has read so
+  far shown as cards. When the answer is in, each sentence that something
+  it read backs gets a small numbered mark for that source, and under the
+  answer sit each part of a question of several asks at a glance, how
+  many of its sentences come from what it read, the sources themselves,
+  and any detail nothing it read gives, to check before relying on it.
+  Hovering a mark lights its source. "Show how" opens the steps again. All
+  of it is written by the app from what the agent did, never from the
+  model's account of itself, and it is kept with the conversation.
+
 - **A message sent while a chat agent works is read at its next step.** On
   a cloud model, what you send while an agent searches or reads waits in
   the queue above the box, which says it will be read at the next step,

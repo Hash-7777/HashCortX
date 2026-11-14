@@ -126,6 +126,19 @@ console.log('\nA source cited twice keeps its number:');
   ok('two sentences from the first source, one from the second: 1, 1, 2', json(t.chips.map((c) => c.n)) === '[1,1,2]', json(t.chips));
 }
 
+console.log('\nWhat counts as a sentence:');
+{
+  const S = (t) => json(V.sentencesOf?.(t));
+  const table = '| What the claim says | Where it comes from |\n|---|---|\n| Each breath moves about half a litre | Wikipedia |\n\nAfter the table, a sentence of its own.';
+  ok('a table\'s rows are their claims; its header and its divider are not sentences, and the table ends at the next line', S(table) === json(['Each breath moves about half a litre', 'After the table, a sentence of its own.']), S(table));
+  const two = `${table}\n| What the next claim says | Where it comes from |\n|---|---|\n| A resting adult breathes about twelve times a minute | Wikipedia |`;
+  ok('...so a second table after it has a header of its own', S(two) === json(['Each breath moves about half a litre', 'After the table, a sentence of its own.', 'A resting adult breathes about twelve times a minute']), S(two));
+  ok('a line that is only links and paper numbers is not a sentence', S('Sources: https://en.wikipedia.org/wiki/Tidal_breathing, PMID 31234567') === '[]');
+  ok('...nor one of paper numbers and joining words', S('See PMID 31234567 and doi 10.5555/x.1.') === '[]', S('See PMID 31234567 and doi 10.5555/x.1.'));
+  ok('bold and code marks are not part of a sentence\'s words', S('**Answer:** it was first lit in `1874` by the board.') === json(['Answer: it was first lit in 1874 by the board.']));
+  ok('a list item is a sentence without its marker', S('- It was built by the harbour board.\n1. It opened in summer.') === json(['It was built by the harbour board.', 'It opened in summer.']));
+}
+
 console.log('\nAn answer from what it knows, with nothing read:');
 {
   const k = V.start('What is a tide?', 0);

@@ -837,7 +837,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   function recordAgentEvent(assistant, type, label, data = null) {
     if (!assistant) return;
     if (!assistant.runEvents) assistant.runEvents = [];
-    assistant.runEvents.push({ ts: Date.now(), type, label: String(label || ""), data });
+    assistant.runEvents.push({ ts: Date.now(), type, label: String(label || ""), data }); window.HCChatView?.note(assistant, type, label, data);   // the reply's view of the work (js/chat/view.js)
   }
 
   function finishAgentRun(assistant) {
@@ -1086,7 +1086,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         // Persist the duration so the timestamp chip survives page reloads
         // and chat switching (previously stripped → chips disappeared on reload).
         durationMs: m.durationMs || undefined, ranCode: m.ranCode || undefined, thinking: m.thinking || undefined, thoughtMs: m.thoughtMs || undefined,
-        _modelContent: m._modelContent || undefined,
+        _modelContent: m._modelContent || undefined, view: m.view || undefined,
         replyTo: m.replyTo || undefined,
         compare: m.compare ? JSON.parse(JSON.stringify(m.compare)) : undefined, versions: HCVersions.forStorage(m, clean), version: HCVersions.of(m) ? m.version : undefined,   // the other versions of an edited message or a regenerated answer, each with what followed it (js/chat/versions.js)
       }; });
@@ -3950,7 +3950,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const body = document.createElement("div");
       body.className = "msg-body";
       body.innerHTML = html;
-      bubble.appendChild(body);
+      bubble.appendChild(body); if (m.view) window.HCChatView?.chips(body, m.view);
       if (displayContent && !isStreamingPlaceholder) {
         const raw = document.createElement("pre");
         raw.className = "msg-raw";
@@ -4069,7 +4069,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // Highlight the message currently being replied to.
     if (state.replyTo && state.replyTo.idx === idx) wrap.classList.add("reply-target");
     if (state.editing && state.editing.idx === idx) wrap.classList.add("reply-target");
-    wrap.appendChild(av); wrap.appendChild(bubble);
+    wrap.appendChild(av); wrap.appendChild(bubble); window.HCChatView?.mount(wrap, bubble, m);
     if (pendingFoot) wrap.appendChild(pendingFoot);
     return wrap;
   }
@@ -4492,14 +4492,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const ctrl = new AbortController();
       state.abort = ctrl;
       assistant.runTrace = beginAgentRun(activeAgent, seedText);
-      recordAgentEvent(assistant, "start", `Agent ${activeAgent.name} started`, { model: modelEl.value, tools: agentToolNames(activeAgent) });
+      assistant.view = window.HCChatViewModel?.start(seedText); recordAgentEvent(assistant, "start", `Agent ${activeAgent.name} started`, { model: modelEl.value, tools: agentToolNames(activeAgent) });
       try {
         const onStatus = (label, kind) => {
           recordAgentEvent(assistant, kind || "status", label);
-          pulse(label, agentToolNames(activeAgent).join(" · "));
+          if (!assistant.view) pulse(label, agentToolNames(activeAgent).join(" · "));
         };
         const onFinalToken = (delta) => {
-          if (!assistant.firstTokenAt) assistant.firstTokenAt = Date.now();
+          if (!assistant.firstTokenAt) { assistant.firstTokenAt = Date.now(); window.HCChatView?.writing(assistant); }
           assistant.content += delta;
           assistant.generatedTokens = (assistant.generatedTokens || 0) + estimateGeneratedTokens(delta);
           assistant.tpsSource = "estimated";
@@ -4515,7 +4515,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         recordAgentEvent(assistant, "error", err?.message || String(err || "Agent failed"));
         if (err.name !== "AbortError") showError(err);
       }
-      window.HCChatTrim?.tell(assistant); window.HCAgentNotice?.add(activeAgent, assistant); finishAgentRun(assistant);   // an agent's notice under its answer, by the app (js/chat/notice.js)
+      window.HCChatView?.finish(assistant); window.HCChatTrim?.tell(assistant); window.HCAgentNotice?.add(activeAgent, assistant); finishAgentRun(assistant);   // an agent's notice under its answer, by the app (js/chat/notice.js)
       flushPendingBubbleUpdate();
     } else {
       // ── Plain chat (no agent selected) ────────────────────────────────

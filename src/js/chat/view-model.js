@@ -112,11 +112,32 @@
     return m;
   }
 
-  /** An answer's sentences, outside its code blocks. */
+  /** The words of a line a reader sees: no bold, italic or code marks, no list or quote marker. */
+  const plainOf = (line) => String(line || '').replace(/\*\*|__|`/g, '').replace(/^\s*(?:[>#*+-]+|\d+[.)])\s+/, '').trim();
+  /** Whether a line says anything once its links and paper numbers are taken out. */
+  const saysSomething = (line) => line.replace(/https?:\/\/\S+/g, '').replace(/\b(?:PMID|PMC|doi|arXiv)\s*:?\s*\S+/gi, '').split(/\s+/).filter((w) => /[\p{L}]{2,}/u.test(w)).length >= 3;
+
+  /**
+   * An answer's sentences, outside its code blocks: a table row is its first
+   * cell, the claim; a header, a divider (no words) and a line of only links
+   * or paper numbers are not sentences.
+   */
   function sentencesOf(answer) {
     const H = window.HCFences;
     const prose = H && H.splitFences ? H.splitFences(String(answer || '')).filter((x) => x.type !== 'code').map((x) => x.text).join('\n') : String(answer || '');
-    return prose.split(/\n+/).flatMap((line) => line.replace(/^[\s>*#-]+/, '').split(/(?<=[.!?])\s+/)).map((s) => s.trim()).filter((s) => s.split(/\s+/).length >= 3);
+    const out = [];
+    let inTable = false;   // the first row of a table is its header
+    for (const raw of prose.split(/\n+/)) {
+      if (/^\s*\|/.test(raw)) {
+        const first = plainOf(raw.split('|').map((c) => c.trim()).filter(Boolean)[0] || '');
+        if (inTable && first.split(/\s+/).length >= 3) out.push(first);
+        inTable = true;
+        continue;
+      }
+      inTable = false;
+      for (const s of plainOf(raw).split(/(?<=[.!?])\s+/)) if (s.trim() && s.trim().split(/\s+/).length >= 3 && saysSomething(s)) out.push(s.trim());
+    }
+    return out;
   }
 
   /**
