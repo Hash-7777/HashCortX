@@ -26,6 +26,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A long model name in the title bar stops before the version.** The
+  name of the model answering could run under the version beside the
+  app's name in a narrower window. It is now cut with an ellipsis a clear
+  gap before it, at any window width.
+
 - **HashCoder names a photo address it changed while copying.** A model
   copying a long photo address from find_photos into a file can change a
   part of it, and the picture never loads. Writing or patching a file that

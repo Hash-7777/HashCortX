@@ -265,8 +265,11 @@ html.is-linux .hc-toolbar-left { width: 0; }
 
 /* The model answering now, or the last to answer (js/model-now.js). Placed
    by position, left of the buttons, so a name of any length never moves the
-   centred title; cut with an ellipsis before it can reach it. A still dot,
-   lit while a model answers: it reports state, so it does not animate. */
+   centred title; cut with an ellipsis before it can reach it. Its widest is
+   half the bar less the 92px it sits from the right edge, the 88px the
+   centred logo, name and version reach right of the middle, and a 20px gap.
+   A still dot, lit while a model answers: it reports state, so it does not
+   animate. */
 .hc-model-now {
   position: absolute;
   right: 92px;
@@ -275,7 +278,7 @@ html.is-linux .hc-toolbar-left { width: 0; }
   display: flex;
   align-items: center;
   gap: 6px;
-  max-width: calc(50% - 170px);
+  max-width: calc(50% - 200px);
   font-family: var(--hc-font);
   font-size: 11px;
   color: var(--hc-text-dim);

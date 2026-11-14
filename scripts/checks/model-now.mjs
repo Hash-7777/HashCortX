@@ -118,6 +118,13 @@ console.log('\nEvery request passes through it:');
   ok('the shell holds no markup for it', !/hcModelNow|hc-model-now/.test(src('index.html')));
   const css = src('styles.css');
   ok('it is placed by position and cut before it can reach the centred title', /\.hc-model-now \{[^}]*position: absolute;[^}]*max-width: calc\(50% - \d+px\);/.test(css) && /\.hc-model-now-name \{[^}]*text-overflow: ellipsis;/.test(css));
+  {
+    // Its left edge is the bar's width less `right` and its widest: it must stop short of the
+    // centred logo, name and version, which reach 88px right of the middle, by a gap of 16px or more.
+    const rule = /\.hc-model-now \{([^}]*)\}/.exec(css)?.[1] || '';
+    const right = Number(/right: (\d+)px;/.exec(rule)?.[1]), less = Number(/max-width: calc\(50% - (\d+)px\);/.exec(rule)?.[1]);
+    ok('at its widest it stops short of the version beside the centred name, at any window width', less - right >= 88 + 16, `${less} - ${right}`);
+  }
   ok('it does not move: no animation on the line', !/\.hc-model-now[^{]*\{[^}]*animation/.test(css));
   const boot = src('boot.js');
   ok('it loads before the local client and app.js', boot.indexOf("'/js/model-now.js'") > 0 && boot.indexOf("'/js/model-now.js'") < boot.indexOf("'/js/local-client.js'") && boot.indexOf("'/js/model-now.js'") < boot.indexOf("'/js/app.js'"));
