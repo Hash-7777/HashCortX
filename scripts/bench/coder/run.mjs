@@ -603,7 +603,7 @@ const DRIVER = `<script>
       // The tab answers once the app has finished starting; ask again until it does.
       for (let tries = 0; !shown($('cdrTaskInput')); tries++) {
         if (tries === 6) throw new Error('timed out waiting for the HashCoder panel');
-        $('tabCode').click();
+        $('tabCode')?.click();   // not drawn yet on a busy machine: the next try asks again
         try { await until(() => shown($('cdrTaskInput')), 10000, 'the HashCoder panel'); } catch {}
       }
       const picker = $('cdrModelPicker');
@@ -611,7 +611,7 @@ const DRIVER = `<script>
         picker.value = job.model;
         picker.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      $('cdrLeftAddFolderBtn').click();
+      (await until(() => $('cdrLeftAddFolderBtn'), 30000, 'the add-folder button')).click();
       await until(() => ($('cdrProjectSub')?.title || '') === job.ws, 30000, 'the project to open');
       answering = setInterval(() => answerPermission(job), 150);
       say('running');
