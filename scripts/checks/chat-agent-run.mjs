@@ -44,7 +44,8 @@ console.log('Which agents run on the shared loop:');
   const url = { id: 'builtin_url_reader', tools: ['fetch_url'] };
   ok('URL Reader, on a cloud model', typeof R.onLoop === 'function' && R.onLoop(url, 'cloud:groq:some-model') === true);
   ok('...not on a model on this computer, which keeps its own way of taking steps', R.onLoop?.(url, 'qwen2.5:7b') === false);
-  ok('...not the agents not moved yet, nor a lite one', R.onLoop?.({ id: 'builtin_researcher' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_url_reader', lite: true }, 'cloud:groq:m') === false && R.onLoop?.(null, 'cloud:groq:m') === false);
+  ok('Researcher, on a cloud model, and not on a model on this computer', R.onLoop?.({ id: 'builtin_researcher', tools: ['web_search', 'wikipedia'] }, 'cloud:groq:m') === true && R.onLoop?.({ id: 'builtin_researcher' }, 'qwen2.5:7b') === false);
+  ok('...not the agents not moved yet, nor a lite one', R.onLoop?.({ id: 'builtin_deep_research' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_hash_ai' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_url_reader', lite: true }, 'cloud:groq:m') === false && R.onLoop?.(null, 'cloud:groq:m') === false);
 }
 
 let ids = 0;

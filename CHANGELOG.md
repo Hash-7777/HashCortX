@@ -19,17 +19,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   given while the model is still writing. The request counts toward the
   provider's usage like any other.
 
-- **URL Reader runs on HashCoder's agent loop when it uses a cloud
-  model.** The first of the chat's agents to move. The conversation it is
-  shown is sized to the model rather than cut to a fixed size, older
+- **URL Reader and Researcher run on HashCoder's agent loop when they use
+  a cloud model.** The first two of the chat's agents to move. The conversation
+  each is shown is sized to the model rather than cut to a fixed size, older
   questions folded into a short record instead of dropped; web searches
   run together; a call written slightly wrong is put right; a failed call made
-  again is answered without running it again. Its answer is checked before
+  again is answered without running it again. The answer is checked before
   it is shown: a question of several parts with parts left out, a search
-  it says it made when none ran, Python it says ran when none did, and an
-  address, number or email nothing it read gives, are each sent back once,
-  and anything still unconfirmed is said under the answer. The other
-  agents, and every agent on a model on this computer, run as before.
+  it says it made when none ran (a web, Wikipedia or PubMed search, or a
+  page read, counts), Python it says ran when none did, and an address,
+  number or email nothing it read gives, are each sent back once, and
+  anything still unconfirmed is said under the answer. The other agents,
+  and every agent on a model on this computer, run as before.
 
 - **HashCoder does not start a model on a job it cannot hold.** Before a
   run, the app checks that the model can take the instructions, its tools

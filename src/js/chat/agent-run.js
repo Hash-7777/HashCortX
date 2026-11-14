@@ -30,7 +30,7 @@
   'use strict';
 
   /** The agents that run on the shared loop, moved one at a time. */
-  const ON_LOOP = ['builtin_url_reader'];
+  const ON_LOOP = ['builtin_url_reader', 'builtin_researcher'];
   const RAN_STEP = 'Sent back: Python it says ran, and none ran';
 
   /** Whether this agent, on this model, runs on the shared loop. */
