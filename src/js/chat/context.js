@@ -108,12 +108,17 @@
   }
 
   /**
-   * What to call a conversation, from the first thing that was said in it.
+   * What to call a conversation, from the first thing that was said in it,
+   * until its model names it (js/chat/title.js).
    *
-   * Three words, because the list it appears in is narrow and a title that is
-   * cut off mid-word by the column reads worse than one that was short on
-   * purpose.
+   * Five words at most, the asking words at the start left out ("can you",
+   * "tell me about"), a link named by its site rather than spelled out, and
+   * no closing question mark: what is left is the subject. The list it
+   * appears in is narrow, so a long title is cut on purpose rather than by
+   * the column.
    */
+  const ASKING = /^(?:(?:hi|hey|hello|ok|okay|so)[,!.]\s*|please\s+|(?:can|could|would|will) you\s+(?:please\s+)?|i(?: would like| want| need)(?: you)? to\s+|help me(?: to)?\s+|tell me(?: about)?\s+|explain\s+|what(?:'s| does| do| is| are| was| were)\s+|how (?:do|can|should) i\s+|how to\s+)/i;
+  const TITLE_WORDS = 5;
   function deriveTitle(messages) {
     const list = Array.isArray(messages) ? messages : [];
     const first = list.find((m) => m && m.role === "user" && m.content);
@@ -123,9 +128,19 @@
     // person's own words, after the prompt's "My question:".
     const text = String(first.content).trim();
     const own = text.split(/\n\s*(?:My question|The problem|Here it is):[ \t]*\n/i).pop().trim();
-    const words = (own || text).replace(/\s+/g, " ").split(" ").filter(Boolean);
+    // A link is its site: the rest of an address says nothing to a reader.
+    const plain = (own || text).replace(/https?:\/\/(?:www\.)?([^\s/?#]+)\S*/gi, "$1").replace(/\s+/g, " ").trim();
+    let subject = plain;
+    for (let i = 0; i < 4; i++) { const next = subject.replace(ASKING, ""); if (next === subject) break; subject = next; }
+    subject = subject.replace(/[\s,;:]*\b(?:please|thanks|thank you)[.!]?$/i, "");
+    // Asking words and nothing else stay as they were said.
+    const words = (subject.trim() || plain).split(" ").filter(Boolean);
     if (!words.length) return "New chat";
-    return words.length > 3 ? `${words.slice(0, 3).join(" ")}…` : words.join(" ");
+    const cut = words.length > TITLE_WORDS;
+    const kept = words.slice(0, TITLE_WORDS);
+    kept[kept.length - 1] = kept[kept.length - 1].replace(/[?!.,;:]+$/, "") || kept[kept.length - 1];
+    if (/^[a-z][a-z'-]*$/.test(kept[0])) kept[0] = kept[0][0].toUpperCase() + kept[0].slice(1);
+    return kept.join(" ") + (cut ? "…" : "");
   }
 
   // A plain chat has no tools, and a model asked to search the web answered

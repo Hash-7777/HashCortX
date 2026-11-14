@@ -121,24 +121,40 @@ console.log('\nWhat a conversation will cost, roughly:');
     C.estimatePromptTokens(null) >= 0 && C.estimatePromptTokens([null, undefined]) >= 0);
 }
 
-console.log('\nA conversation is named after the first thing said in it:');
+console.log('\nA conversation is named after the first thing said in it, until its model names it:');
 {
-  ok('a short opening is the whole title',
-    C.deriveTitle([{ role: 'user', content: 'fix my css' }]) === 'fix my css');
-  ok('a long one is cut to three words',
-    C.deriveTitle([{ role: 'user', content: 'build me a really large website' }]) === 'build me a…');
+  ok('a short opening is the whole title, its first letter a capital',
+    C.deriveTitle([{ role: 'user', content: 'fix my css' }]) === 'Fix my css');
+  ok('a long one is cut to five words',
+    C.deriveTitle([{ role: 'user', content: 'build me a really large website' }]) === 'Build me a really large…');
   ok('the assistant does not name the conversation',
-    C.deriveTitle([{ role: 'assistant', content: 'Certainly!' }, { role: 'user', content: 'hi there' }]) === 'hi there');
+    C.deriveTitle([{ role: 'assistant', content: 'Certainly!' }, { role: 'user', content: 'hi there' }]) === 'Hi there');
   ok('nothing said yet is a new chat',
     C.deriveTitle([]) === 'New chat' && C.deriveTitle(null) === 'New chat');
   ok('and neither is whitespace', C.deriveTitle([{ role: 'user', content: '   ' }]) === 'New chat');
-  ok('a chat started from a starter prompt is titled by the person\'s own question', C.deriveTitle([{ role: 'user', content: 'Look this up before you answer.\n\n- Search first.\n\nMy question:\nlatest Node version please' }]) === 'latest Node version…');
+  ok('a chat started from a starter prompt is titled by the person\'s own question, a closing please left out', C.deriveTitle([{ role: 'user', content: 'Look this up before you answer.\n\n- Search first.\n\nMy question:\nlatest Node version please' }]) === 'Latest Node version');
   ok('... whichever starter it was', C.deriveTitle([{ role: 'user', content: 'Work this out in Python.\n\nThe problem:\n17 factorial' }]) === '17 factorial');
   ok('the chat list names each chat\'s model as its menu does, not by its raw id', /const modelLabel = \[\.\.\.\(modelEl\?\.options \|\| \[\]\)\]\.find\(o => o\.value === chat\.model\)\?\.textContent \|\| chat\.model \|\| "—";/.test(readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8')));
   ok('... and is drawn again once the menu is filled, which on a fresh start comes after it', /syncCompareModelOptions\(\);\s*renderChatList\(\);/.test(readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8')));
-  ok('... and a starter sent with nothing added keeps its own words', C.deriveTitle([{ role: 'user', content: 'Work this out in Python.\n\nThe problem:\n' }]) === 'Work this out…');
+  ok('... and a starter sent with nothing added keeps its own words', C.deriveTitle([{ role: 'user', content: 'Work this out in Python.\n\nThe problem:\n' }]) === 'Work this out in Python…');
   ok('runs of spaces do not become empty words',
-    C.deriveTitle([{ role: 'user', content: 'a    b    c    d' }]) === 'a b c…');
+    C.deriveTitle([{ role: 'user', content: 'a    b    c    d' }]) === 'A b c d');
+  ok('the asking words at the start are left out',
+    C.deriveTitle([{ role: 'user', content: 'Can you please explain how tides work?' }]) === 'How tides work');
+  ok('... several of them, one after another',
+    C.deriveTitle([{ role: 'user', content: 'Hi, could you tell me about the history of glass' }]) === 'The history of glass');
+  ok('... and a question that is only asking words keeps them',
+    C.deriveTitle([{ role: 'user', content: 'what is' }]) === 'What is');
+  ok('... and a greeting said alone is its own title',
+    C.deriveTitle([{ role: 'user', content: 'Hello!' }]) === 'Hello');
+  ok('a link is named by its site, not spelled out whole',
+    C.deriveTitle([{ role: 'user', content: 'What does https://www.larkfield-tea.example/menu?day=2 say about opening days and the teas?' }]) === 'larkfield-tea.example say about opening days…');
+  ok('... and a message that is only a link is titled by its site',
+    C.deriveTitle([{ role: 'user', content: 'https://docs.example.org/guide/start' }]) === 'docs.example.org');
+  ok('a closing question mark or full stop is not part of the title',
+    C.deriveTitle([{ role: 'user', content: 'Why is the sky blue?' }]) === 'Why is the sky blue');
+  ok('a word in capitals keeps them',
+    C.deriveTitle([{ role: 'user', content: 'CSS grid or flexbox' }]) === 'CSS grid or flexbox');
 }
 
 console.log('\nA plain chat is told it has no tools:');

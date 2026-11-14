@@ -61,6 +61,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A chat's title names what it is about.** Taken from the first message,
+  it leaves out the asking words at the start ("can you", "tell me about",
+  "what is"), names a link by its site rather than its whole address, drops
+  a closing "please" or question mark, and keeps up to five words, its
+  first letter a capital. The header shows the title whole.
 - **A HashCoder run shows its steps in phases.** Finding, Reading,
   Changing, Checking and Reviewing are worked out by the app from what each
   step is, each with its own drawn mark on the rail, one line of what it did

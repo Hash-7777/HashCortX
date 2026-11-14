@@ -4375,7 +4375,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
   function setActiveTitle(title) {
     const full = title || "";
-    activeTitle.textContent = shortTitle(full) || "New Conversation";
+    activeTitle.textContent = shortTitle(full, 6) || "New Conversation";
     activeTitle.title = full + " — double-click to rename";
   }
 
