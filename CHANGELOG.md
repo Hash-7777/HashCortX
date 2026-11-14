@@ -26,8 +26,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   provider's usage like any other.
 
 - **URL Reader, Researcher, Published Papers Researcher, Deep Research,
-  HashCortx and Coder run on HashCoder's agent loop when they use a cloud
-  model.** The first six of the chat's agents to move. A run ends when it stops making
+  HashCortx, Coder and Medical Lexi-Check run on HashCoder's agent loop
+  when they use a cloud model.** The first seven of the chat's agents to
+  move. A run ends when it stops making
   progress, within the loop's limits, which leaves room for a brief that
   needs several searches. The conversation
   each is shown is sized to the model rather than cut to a fixed size, older

@@ -30,7 +30,7 @@
   'use strict';
 
   /** The agents that run on the shared loop, moved one at a time. */
-  const ON_LOOP = ['builtin_url_reader', 'builtin_researcher', 'builtin_papers', 'builtin_deep_research', 'builtin_hash_ai', 'builtin_coder'];
+  const ON_LOOP = ['builtin_url_reader', 'builtin_researcher', 'builtin_papers', 'builtin_deep_research', 'builtin_hash_ai', 'builtin_coder', 'builtin_medical_lexi'];
   const RAN_STEP = 'Sent back: Python it says ran, and none ran';
   /** The agents that may answer from what they know: their details are held to a source only once they have searched (js/chat/finish.js). */
   const FROM_KNOWLEDGE = ['builtin_hash_ai', 'builtin_coder'];
