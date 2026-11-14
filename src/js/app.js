@@ -4806,7 +4806,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         // generator is never the fallback for a conversation.
         const routes = window.HCModelRoutes.createRun({ options: () => getAvailableCloudModels().filter(m => !m.imageGen), label: cloudModelLabel,
           strength: (o) => window.HCChatFailover.strengthOf(o.value, o.label) }); routes.measure([messages]);   // passes over a model whose budget this conversation does not fit
-        let failoverCount = 0;
+        let failoverCount = 0, goneCount = 0;   // a model found gone does not spend a move (js/chat/failover.js MAX_GONE)
         while (true) {
           const { provider, modelId } = parseCloudModel(currentModelValue);
           if (!provider || !modelId) throw new Error("Invalid cloud model value: " + currentModelValue);
@@ -4822,18 +4822,18 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
               const used = await streamCloudModel(provider, modelId, messages, temperature, onCloudToken, ctrl.signal, (t) => showThinking(assistant, t));
               if (used) Object.assign(assistant, { inputTokens: used.inputTokens || assistant.inputTokens, outputTokens: used.outputTokens || assistant.outputTokens });   // measured by the provider, where it says
             }
+            if (assistant.moves) assistant.content = `${assistant.content.trimEnd()}\n\n${window.HCChatFailover.movedNote(assistant.moves, cloudModelLabel(currentModelValue))}`;   // under the answer, once it is in
             break; // success
           } catch (err) {
             if (err.name === "AbortError") throw err;
             // Out of quota or credit, a refused key, gone, busy, empty or never
             // started: another model can answer. Anything else is the request's own fault.
-            if (!["retired", "limit", "key", "busy", "slow", "empty", "size"].includes(window.HCModelRoutes.failureKind(err)) || failoverCount >= 5) throw err;
-            const fallback = routes.next(currentModelValue, err);
-            if (!fallback) throw err; // no fallback available — surface original error
-            failoverCount++;
-            // Brief status in bubble before retrying
-            assistant.content = `_(Failover ${failoverCount}: ${cloudModelLabel(currentModelValue)} → ${cloudModelLabel(fallback)})_\n\n`;
-            updateLastBubble(assistant.content);
+            const kind = window.HCModelRoutes.failureKind(err); (assistant.moves = assistant.moves || []).push(`${cloudModelLabel(currentModelValue)}, ${window.HCModelRoutes.reasonText(kind, err)}`);   // each model that could not, and why
+            if (!window.HCChatFailover.AGENT_MOVES_ON.includes(kind) || failoverCount >= 5 || goneCount >= window.HCChatFailover.MAX_GONE) throw err;
+            const fallback = routes.next(currentModelValue, err); if (!fallback) throw err; // no fallback available — surface original error
+            kind === "retired" ? goneCount++ : failoverCount++;
+            assistant.content = "";   // said while the next model starts, never written into the answer: it starts again from nothing
+            updateLastBubble(`Moving to ${cloudModelLabel(fallback)}: ${cloudModelLabel(currentModelValue)} could not answer (${window.HCModelRoutes.reasonText(kind, err)}).`);
             currentModelValue = fallback;
           }
         }
@@ -4861,7 +4861,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         if (reply.last) recordUsage(modelEl.value || "ollama", done.prompt_eval_count, done.eval_count);
       }
     } catch (err) {
-      if (err.name !== "AbortError") showError(err);
+      if (err.name !== "AbortError") showError(err); assistant.failedWith = err.name === "AbortError" ? "" : assistant.moves?.length > 1 ? `none of the models could answer. ${assistant.moves.join("; ")}.` : String(err?.message || err || "");   // said in the bubble below, not only above it
     } finally {
       if (assistant.thinking) assistant.thoughtMs = (assistant.firstTokenAt || Date.now()) - (assistant.thoughtStart || assistant.startedAt); if (assistant.content) assistant.content = HCPromptPrivacy.withoutQuotes(assistant.content, buildOllamaMessages().filter((m) => m.role === "system").map((m) => m.content));   // an answer does not repeat its instructions (js/prompt-privacy.js)
       // If the stream completed but produced no content, surface a clear error
@@ -4870,9 +4870,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         const last = msgs.querySelector(".msg.assistant:last-of-type .bubble");
         if (last) {
           last.classList.remove("thinking-bubble");
-          last.innerHTML = `<span style="color:var(--error,#f87171);font-style:italic;">No response received — check that your model is loaded and your API key is set.</span>`;
+          last.innerHTML = `<span style="color:var(--error,#f87171);font-style:italic;">${assistant.failedWith ? `No answer: ${escapeHtml(assistant.failedWith)}` : "No response received. Check that the model is loaded, or that its key is set in Settings."}</span>`;
         }
-        assistant.content = "[No response]";
+        assistant.content = assistant.failedWith ? `*No answer: ${assistant.failedWith}*` : "[No response]";
       }
     }
   }

@@ -118,7 +118,7 @@
   function agentTurns({ start, send, adapterOf, routes, failureKind, reasonText, onSwitch, maxSwitches = 5 }) {
     let model = start;
     let adapter = adapterOf(start);
-    let switches = 0;
+    let switches = 0, gone = 0;
     return {
       get model() { return model; },
       async turn(request) {
@@ -131,10 +131,10 @@
           } catch (err) {
             const kind = failureKind(err);
             const stopped = request.signal && request.signal.aborted;
-            if (!routes || stopped || switches >= maxSwitches || !AGENT_MOVES_ON.includes(kind)) throw err;
+            if (!routes || stopped || switches >= maxSwitches || gone >= MAX_GONE || !AGENT_MOVES_ON.includes(kind)) throw err;
             const next = routes.next(model, err);
             if (!next) throw err;
-            switches++;
+            if (kind === 'retired') gone++; else switches++;   // a model found gone does not spend a move (MAX_GONE)
             if (onSwitch) onSwitch(model, next, reasonText(kind, err));
             model = next;
             adapter = adapterOf(next);
@@ -144,5 +144,25 @@
     };
   }
 
-  window.HCChatFailover = { tierOf, rankOf, strengthOf, classifyError, agentTurns, AGENT_MOVES_ON, TIER_RANK, FREE_TIER };
+  /**
+   * Moving away from a model its provider says is gone costs half a second
+   * and is remembered (js/model-routes.js), so it never counts against the
+   * moves a run may make: a provider listing several models it has retired
+   * spent every move on them, and a model that could answer was never asked.
+   * This bounds those moves on their own.
+   */
+  const MAX_GONE = 20;
+
+  /**
+   * The line under an answer a run moved for: which model answered, and why
+   * each one before it did not. `moves` is a list of "Model: why". Words
+   * the person reads, kept apart from the answer while it is written.
+   */
+  function movedNote(moves, answeredBy) {
+    const list = (Array.isArray(moves) ? moves : []).filter(Boolean);
+    if (!list.length) return '';
+    return `*Answered by ${answeredBy}. ${list.length === 1 ? 'The model before it' : 'The models before it'} could not: ${list.join('; ')}.*`;
+  }
+
+  window.HCChatFailover = { MAX_GONE, movedNote, tierOf, rankOf, strengthOf, classifyError, agentTurns, AGENT_MOVES_ON, TIER_RANK, FREE_TIER };
 })();

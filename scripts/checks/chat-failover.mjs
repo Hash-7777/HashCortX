@@ -170,6 +170,23 @@ console.log('\nAn agent moves to another model when the one in use cannot answer
   }
   R.forgetCooling();
   {
+    // A provider that lists many models it has retired: each is found gone in turn.
+    const many = Array.from({ length: 8 }, (_, i) => ({ value: `cloud:nvidia:vendor/old-${i}`, label: `Old ${i}` }));
+    const live = { value: 'cloud:groq:openai/gpt-oss-120b', label: 'GPT OSS 120B' };
+    const asked = [];
+    const gone = (m) => Object.assign(new Error(`${m}: model not found`), { status: 404 });
+    const turns = F.agentTurns({
+      start: many[0].value,
+      send: async (req) => { asked.push(req.modelValue); if (req.modelValue === live.value) return { content: 'answered' }; throw gone(req.modelValue); },
+      adapterOf, routes: R.createRun({ options: () => [...many, live], store: null, strength: (o) => (o === live ? 0 : 10) }), failureKind: R.failureKind, reasonText: R.reasonText,
+    });
+    const out = await turns.turn({ messages: [{ role: 'user', content: 'hi' }], tools: [] }).catch((e) => e);
+    ok('moving past models found gone does not spend the moves a run may make', out && out.content === 'answered' && asked.length === 9, `${asked.length} asked`);
+    ok('...and those moves have a bound of their own', F.MAX_GONE === 20 && /gone >= MAX_GONE/.test(readFileSync(join(root, 'src', 'js', 'chat', 'failover.js'), 'utf8')));
+    R.forgetRetired?.();
+  }
+  R.forgetCooling();
+  {
     const { turns, asked } = make([Object.assign(new Error('Function call is missing a thought_signature'), { status: 400 })]);
     const err = await turns.turn({ messages: [], tools: [] }).catch((e) => e);
     ok('a mistake in the request itself is not passed round every model', /thought_signature/.test(err.message) && asked.length === 1);
@@ -216,6 +233,21 @@ console.log('\nHow the chat uses it:');
   ok('"Look it up" turns on an agent that can search when the one in use cannot', /grounded: \["web_search", "builtin_researcher"/.test(preset) && /setActiveAgent\(needs\[1\]\)/.test(preset));
   ok('"Work it out" turns on one that can run Python', /compute: \["code_interpreter", "builtin_hash_ai"/.test(preset));
   ok('"Use my notes" says when a cloud model means the notes are not read', /preset === "knowledge"/.test(preset) && /never sent to a cloud model/.test(preset));
+}
+
+console.log('\nA chat that moves to another model says so under the answer, never in it:');
+{
+  ok('one move: which model answered, and why the one before it could not', F.movedNote(['Gemini 4 Carbon · Google, this account is out of quota'], 'DeepSeek Flash · DeepSeek') === '*Answered by DeepSeek Flash · DeepSeek. The model before it could not: Gemini 4 Carbon · Google, this account is out of quota.*');
+  ok('several moves are each named', /^\*Answered by X\. The models before it could not: A, gone; B, busy\.\*$/.test(F.movedNote(['A, gone', 'B, busy'], 'X')));
+  ok('no move, no note', F.movedNote([], 'X') === '' && F.movedNote(null, 'X') === '');
+  const app = readFileSync(join(root, 'src', 'js', 'app.js'), 'utf8');
+  ok('no note about a move is written into an answer as it streams', !/assistant\.content = `_\(Failover/.test(app));
+  ok('each model that could not answer is kept with why, before anything else is decided', /const kind = window\.HCModelRoutes\.failureKind\(err\); \(assistant\.moves = assistant\.moves \|\| \[\]\)\.push\(`\$\{cloudModelLabel\(currentModelValue\)\}, \$\{window\.HCModelRoutes\.reasonText\(kind, err\)\}`\);/.test(app));
+  ok('a move starts the answer again from nothing and is said in the bubble while the next model starts', /kind === "retired" \? goneCount\+\+ : failoverCount\+\+;\n\s*assistant\.content = "";/.test(app) && /updateLastBubble\(`Moving to \$\{cloudModelLabel\(fallback\)\}:/.test(app));
+  ok('once an answer is in, the note goes under it', /if \(assistant\.moves\) assistant\.content = `\$\{assistant\.content\.trimEnd\(\)\}\\n\\n\$\{window\.HCChatFailover\.movedNote\(assistant\.moves, cloudModelLabel\(currentModelValue\)\)\}`;\s*\/\/[^\n]*\n\s*break; \/\/ success/.test(app));
+  ok('the chat moves on the same failures as every agent, and a model found gone spends no move', /if \(!window\.HCChatFailover\.AGENT_MOVES_ON\.includes\(kind\) \|\| failoverCount >= 5 \|\| goneCount >= window\.HCChatFailover\.MAX_GONE\) throw err;/.test(app) && /kind === "retired" \? goneCount\+\+ : failoverCount\+\+;/.test(app));
+  ok('a reply that failed says why in its own bubble, every model tried named when there were several', /assistant\.failedWith = err\.name === "AbortError" \? "" : assistant\.moves\?\.length > 1 \? `none of the models could answer\. \$\{assistant\.moves\.join\("; "\)\}\.` : String\(err\?\.message/.test(app)
+    && /assistant\.content = assistant\.failedWith \? `\*No answer: \$\{assistant\.failedWith\}\*` : "\[No response\]";/.test(app));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/failover.js)\n`);

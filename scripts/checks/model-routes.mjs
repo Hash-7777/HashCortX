@@ -476,7 +476,7 @@ console.log('\nA request is sized before a model is chosen for it:');
   const ask = src('js', 'swarm', 'ask.js');
   ok('the Swarm\'s questions, its plan and its repair pass over a model their request does not fit, the repair sized by the whole project it sends', /fits: fitsFor\(\[task\], 512\)/.test(ask) && /fits: fitsFor\(\[task\], 1024\)/.test(ask) && /fits: fitsFor\(messages, 2048\)/.test(ask) && /window\.HCModelLimits\.canHold\(v, window\.HCModelLimits\.estimateTokens\(parts\), need\)/.test(ask));
   const app = src('js', 'app.js');
-  ok('the chat measures the conversation it is about to send, and moves on from a request too large for a model', /routes\.measure\(\[messages\]\);/.test(app) && /\["retired", "limit", "key", "busy", "slow", "empty", "size"\]\.includes\(window\.HCModelRoutes\.failureKind\(err\)\)/.test(app));
+  ok('the chat measures the conversation it is about to send, and moves on from a request too large for a model', /routes\.measure\(\[messages\]\);/.test(app) && /if \(!window\.HCChatFailover\.AGENT_MOVES_ON\.includes\(kind\)/.test(app) && /const AGENT_MOVES_ON = \["retired", "limit", "key", "busy", "slow", "empty", "size"\];/.test(src('js', 'chat', 'failover.js')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (model routes)`);

@@ -26,6 +26,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A chat that moves to another model answers first and says so after.**
+  When the chosen model could not answer, a note about the move was
+  written into the reply itself, and when every model failed it was all
+  the reply said. The note now shows only while the next model starts,
+  and the answer is followed by a line naming the model that answered and
+  why each one before it could not. When none could, the reply names each
+  model tried and why. A model its provider says is gone no longer uses
+  one of the moves a run may make, in Chats, the agents and HashCoder, so
+  a provider listing several retired models no longer stops a run before
+  a model that can answer is asked.
+
 - **Every model is told which model it is.** Asked which model it was, a
   model could answer with the name of a different model or company than
   the one chosen. Each request now tells the model answering it its name
