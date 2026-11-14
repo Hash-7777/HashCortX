@@ -175,7 +175,37 @@
     return false;
   }
 
+  /**
+   * The line that tells a model which model it is. Without it a model
+   * asked "which model are you?" answers from what it was trained on, and
+   * several name a different model, or a different company, than the one
+   * the person chose. `label` is the name the app shows, "Name · Provider".
+   */
+  function identityRule(val, label) {
+    const v = String(val || '');
+    if (!v) return '';
+    const [name, by] = String(label || '').split(' · ');
+    const said = v.startsWith('cloud:')
+      ? `You are running on the model ${name || parseCloudModel(v).modelId}, served by ${by || parseCloudModel(v).provider}.`
+      : `You are running on the model ${name || v}, on this computer.`;
+    return `${said} Asked which model you are or who made you, say that. Never say you are a different model, or made by a different company.`;
+  }
+
+  /** The messages with that line added to the instructions, once, at their end. */
+  function withIdentity(messages, val, label) {
+    const rule = identityRule(val, label);
+    const list = Array.isArray(messages) ? messages : [];
+    if (!rule) return list;
+    const at = list.findIndex((m) => m && m.role === 'system');
+    if (at < 0) return [{ role: 'system', content: rule }, ...list];
+    // A run that moved to another model replaces the line rather than adding a second.
+    const own = String(list[at].content || "").replace(/\n\nYou are running on the model [^\n]*/g, "");
+    return list.map((m, i) => (i === at ? { ...m, content: `${own}\n\n${rule}` } : m));
+  }
+
   window.HCModelNames = {
+    identityRule,
+    withIdentity,
     MODEL_TIER,
     parseCloudModel,
     prettifyModelId,

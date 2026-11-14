@@ -245,7 +245,7 @@ My question:
     forgePrint: FORGE_PRINT_PROMPT,
   };
 
-  // Composer chip presets. Default = general-purpose, code = Claude-Code style.
+  // Composer chip presets. Default = general-purpose, code = for coding work.
   const COMPOSER_CHIPS = {
     default: [
       { preset: "explainAny",    label: "Explain this",   title: "Paste anything — code, an error, a contract, a log — and get it in plain language" },

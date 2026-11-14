@@ -1403,7 +1403,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // ========= Tabs =========
   // "chats"  → normal conversation list
   // "agents" → manage & activate built-in / custom agents
-  // "code"   → Claude-Code-style terminal-themed panel with code-focused
+  // "code"   → terminal-themed panel with code-focused
   // "forge"  → architecture-first 3D build planning mode
   // "split"  → side-by-side comparison mode for two selected models
   //            prompt chips. Still a normal chat, just a different skin +
@@ -2364,7 +2364,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   const turnModel = (r) => (r && (r.modelValue || (r.adapter && (r.adapter.kind === "ollama" ? r.adapter.model : `cloud:${r.adapter.provider}:${r.adapter.model}`)))) || "";
   const runModelTurn = (request) => HCModelNow.around(turnModel(request), () =>   // named in the title bar while it answers (js/model-now.js)
     HCAgentShape.routeModelTurn(
-      request,
+      Array.isArray(request?.messages) && !request.json ? { ...request, messages: HCModelNames.withIdentity(request.messages, turnModel(request), cloudModelLabel(turnModel(request))) } : request,   // told which model it is (js/model-names.js)
       {
         ollama: agentTurnOllama,
         gemini: agentTurnGemini,
@@ -3479,7 +3479,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const label = cloudModelLabel(`cloud:${provider}:${modelId}`);
     let started = false, used = null;
     const tell = (t) => { started = true; w.sign(); onToken(t); };
-    const once = () => HCModelNow.around(`cloud:${provider}:${modelId}`, () => streamCloudModelOnce(provider, modelId, messages, temperature, tell, w.signal, (t) => { w.sign(); onThinking?.(t); }));   // named in the title bar while it answers (js/model-now.js)
+    const once = () => HCModelNow.around(`cloud:${provider}:${modelId}`, () => streamCloudModelOnce(provider, modelId, HCModelNames.withIdentity(messages, `cloud:${provider}:${modelId}`, label), temperature, tell, w.signal, (t) => { w.sign(); onThinking?.(t); }));   // named in the title bar while it answers (js/model-now.js)
     try {
       try {
         used = await once();
@@ -4844,7 +4844,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         if (refused) throw new Error(refused);
         // Room for all of it, or Ollama drops the start — the instructions (js/local-context.js).
         const numCtxNow = await HCLocalContext.numCtx(host, modelEl.value, messages);
-        const reply = await HCLocal.chat(host, { model: modelEl.value, messages, temperature, numCtx: numCtxNow }, {
+        const reply = await HCLocal.chat(host, { model: modelEl.value, messages: HCModelNames.withIdentity(messages, modelEl.value, modelEl.value), temperature, numCtx: numCtxNow }, {
           signal: ctrl.signal,
           onThinking: (t) => showThinking(assistant, t),
           onToken: (delta) => {
@@ -4965,7 +4965,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const host = safeHost();
     trackLocalModel(modelValue);
     const numCtxNow = await HCLocalContext.numCtx(host, modelValue, messages);
-    const reply = await HCLocal.chat(host, { model: modelValue, messages, temperature, numCtx: numCtxNow }, { signal, onToken: (t) => onToken(t) });
+    const reply = await HCLocal.chat(host, { model: modelValue, messages: HCModelNames.withIdentity(messages, modelValue, modelValue), temperature, numCtx: numCtxNow }, { signal, onToken: (t) => onToken(t) });
     if (reply.last && typeof onStats === "function") onStats(reply.last);
   }
 
@@ -4974,7 +4974,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // the right endpoint with the stored key, and local ones talk to Ollama
   // directly. It used to live at the bottom of the file inside a swarm
   // implementation nothing could reach.
-  async function ollamaChat(model, given, onToken, signal, { json, onThinking } = {}) { const messages = json ? given : HCAgentShape.withPrivacyRule(given, HCPromptPrivacy.RULE), kept = (text) => (json ? text : HCPromptPrivacy.withoutQuotes(text, HCAgentShape.appTextOf(messages)));   // json: a local model must answer in JSON; any other answer is told, and kept from, its instructions (js/prompt-privacy.js)
+  async function ollamaChat(model, given, onToken, signal, { json, onThinking } = {}) { const messages = json ? given : HCModelNames.withIdentity(HCAgentShape.withPrivacyRule(given, HCPromptPrivacy.RULE), model, cloudModelLabel(model)), kept = (text) => (json ? text : HCPromptPrivacy.withoutQuotes(text, HCAgentShape.appTextOf(messages)));   // json: a local model must answer in JSON; any other answer is told, and kept from, its instructions (js/prompt-privacy.js)
     if (model && model.startsWith("cloud:")) {
       let full = "";
       await streamWithModelValue({
@@ -5997,7 +5997,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const thinks = (await HCLocalContext.infoOf(host, model)).caps?.includes("thinking");
     const chat = async (msgs, { json, onToken, plain } = {}) => {
       const numCtx = await HCLocalContext.numCtx(host, model, msgs, json ? { need: 2048 } : {});
-      const reply = await HCLocal.chat(host, { model, messages: msgs, json, temperature: json ? 0 : temperature, numCtx, numPredict: json ? 2048 : undefined, think: (json || plain) && thinks ? false : undefined }, { signal, onToken, onThinking: (t) => showThinking(assistant, t) });
+      const reply = await HCLocal.chat(host, { model, messages: json ? msgs : HCModelNames.withIdentity(msgs, model, model), json, temperature: json ? 0 : temperature, numCtx, numPredict: json ? 2048 : undefined, think: (json || plain) && thinks ? false : undefined }, { signal, onToken, onThinking: (t) => showThinking(assistant, t) });
       if (reply.last) recordUsage(model, reply.last.prompt_eval_count, reply.last.eval_count);
       return reply.content;
     };

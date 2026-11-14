@@ -26,6 +26,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Every model is told which model it is.** Asked which model it was, a
+  model could answer with the name of a different model or company than
+  the one chosen. Each request now tells the model answering it its name
+  and who serves it, in Chats, the agents and every mode, and again when a
+  run moves to another model, and tells it never to claim to be another
+  model or made by another company.
+
 - **A picture reaches every model that can see it, and never stops a
   conversation with one that cannot.** Whether a cloud model reads pictures
   is taken from its provider's own model list where that list says so
