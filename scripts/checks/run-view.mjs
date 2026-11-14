@@ -155,6 +155,15 @@ const boot = src('boot.js');
 ok('it is loaded after the module it reads and before the steps that call it', boot.indexOf("'/js/run-view.js'") > boot.indexOf("'/js/code/verify.js'") && boot.indexOf("'/js/run-view.js'") < boot.indexOf("'/js/code/steps.js'"));
 ok('it is part of npm run check', /npm run check:run-view\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 
+console.log('\nOnce the run has ended:');
+{
+  const done = V.askMarks(asks, { first, said: '', steps: run.slice(0, 3), ended: true });
+  ok('an ask steps served but nothing answered is not finished, not in work, once the run has ended', done[0].state === 'working' && done[0].why === 'not finished · 2 steps' && !done.some((m) => /in work/.test(m.why)));
+  ok('...and while it runs it is still in work', V.askMarks(asks, { first, steps: run.slice(0, 3) })[0].why === 'in work · 2 steps');
+  const view = src('js', 'run-view.js');
+  ok('the run is marked ended before the brief is drawn the last time, and the brief is told', /st\.ended = true;[^\n]*\n\s*brief\(contentEl\);/.test(view) && /since: st\.since, ended: !!st\.ended \}\);/.test(view));
+}
+
 console.log('\nHow the brief and the receipt sit on the page:');
 {
   const css = src('modes', 'code', 'mode.css');

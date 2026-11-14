@@ -26,6 +26,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **An ask a HashCoder run worked on but did not finish says so once the
+  run ends.** The request card kept saying "in work" after the run had
+  stopped, for instance to ask a question. Once the run has ended such an
+  ask says "not finished", with the steps that worked on it.
+
 - **HashCoder's request card no longer covers the run, and a row of the
   run's receipt no longer squeezes its words.** The card listing each ask
   of a request was pinned to the top of the conversation while it

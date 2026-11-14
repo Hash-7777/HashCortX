@@ -142,9 +142,10 @@
    * (what was said as it finished says it); `added` when it is not in the
    * request the run began with; `why` in plain words. `since[i]` is the
    * first step ask i can have been served by: an ask you added counts only
-   * the steps after it was read.
+   * the steps after it was read. Once the run has `ended`, an ask that steps
+   * served but nothing answered is not finished rather than in work.
    */
-  function askMarks(asks, { first = '', said = '', steps = [], since = [] } = {}) {
+  function askMarks(asks, { first = '', said = '', steps = [], since = [], ended = false } = {}) {
     const L = typeof window !== 'undefined' && window.HCRunLedger;
     const was = flat(first);
     const all = Array.isArray(steps) ? steps : [];
@@ -154,7 +155,7 @@
       const state = answered ? 'answered' : served.length ? 'working' : 'open';
       const added = !!was && !was.includes(flat(text));
       const files = new Set(served.map((j) => all[j]).filter((s) => CHANGES.has(String(s.verb || '').toUpperCase())).map((s) => String(s.object))).size;
-      const how = state === 'answered' ? (files ? `answered · ${many(files, 'file', 'files')}` : 'answered') : state === 'working' ? `in work · ${many(served.length, 'step', 'steps')}` : '';
+      const how = state === 'answered' ? (files ? `answered · ${many(files, 'file', 'files')}` : 'answered') : state === 'working' ? `${ended ? 'not finished' : 'in work'} · ${many(served.length, 'step', 'steps')}` : '';
       return { n: i + 1, text: String(text), state, added, served, why: [added ? 'you added' : '', how].filter(Boolean).join(' · ') };
     });
   }
@@ -458,7 +459,7 @@
     st.since = st.since || [];
     const was = flat(code.firstRequest);
     code.asks.forEach((a, i) => { if (st.since[i] == null) st.since[i] = was && !was.includes(flat(a)) ? st.all.length : 0; });   // an ask you added counts the steps after it was read
-    const marks = askMarks(code.asks, { first: code.firstRequest, said: code.said, steps: st.all, since: st.since });
+    const marks = askMarks(code.asks, { first: code.firstRequest, said: code.said, steps: st.all, since: st.since, ended: !!st.ended });
     let box = st.brief;
     if (!box || !box.isConnected) {
       box = st.brief = document.createElement('section');
@@ -488,7 +489,7 @@
       li.querySelector('svg').innerHTML = MARKS[m.added && m.state === 'open' ? 'added' : m.state];
       li.querySelector('.cdr-ask-text').textContent = m.text;
       li.querySelector('.cdr-ask-why').textContent = m.why;
-      li.querySelector('button').setAttribute('aria-label', `Ask ${m.n}, ${SAYS[m.state]}${m.added ? ', you added it' : ''}: ${m.text}`);
+      li.querySelector('button').setAttribute('aria-label', `Ask ${m.n}, ${st.ended && m.state === 'working' ? 'not finished' : SAYS[m.state]}${m.added ? ', you added it' : ''}: ${m.text}`);
     });
     return box;
   }
@@ -552,10 +553,10 @@
   function end(contentEl) {
     const st = contentEl && contentEl.hcPhases;
     if (!st) return;
+    st.ended = true;   // before the brief is drawn the last time, so an ask left half done says so
     brief(contentEl);
     window.HCCodePreview?.onStep(contentEl, 'end');
     close(st.cur);
-    st.ended = true;
     signal(contentEl);   // settled: no "now", a dot at its end
     contentEl.hcPhases = null;
   }
