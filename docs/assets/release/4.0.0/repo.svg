@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 540" width="1280" height="540" role="img" aria-label="HashCoder, in your repository: finds, changes, proves, then commits as you. 01 Finds the files: ranks files by the rare words in your request, with an outline of a large project. 02 Changes with care: reads a file and what uses it first, and keeps its line endings and encoding. 03 Proves it by code: tests, a build or a syntax check prove each change; nothing is taken on the model's word. 04 Commits as you: signed as your commits are, when you ask; a push is asked every time, and never forced. Its own git tools: git_status, git_diff, git_commit, git_branch, git_push, git_pull.">
+  <defs>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#8b6d2c"/>
+    <stop offset="0.28" stop-color="#c9a96e"/>
+    <stop offset="0.5" stop-color="#f6e7c1"/>
+    <stop offset="0.72" stop-color="#c9a96e"/>
+    <stop offset="1" stop-color="#8b6d2c"/>
+  </linearGradient>
+  <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#c9a96e" stop-opacity="0"/>
+    <stop offset="0.5" stop-color="#c9a96e" stop-opacity="0.85"/>
+    <stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+  </linearGradient>
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+    <path d="M32 0H0V32" fill="none" stroke="#c9a96e" stroke-opacity="0.06" stroke-width="1"/>
+  </pattern>
+  <radialGradient id="glow" cx="0.770" cy="0.504" r="0.42">
+    <stop offset="0" stop-color="#c9a96e" stop-opacity="0.30"/>
+    <stop offset="0.45" stop-color="#c9a96e" stop-opacity="0.07"/>
+    <stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+  </radialGradient>
+  </defs>
+  <clipPath id="c"><rect width="1280" height="540" rx="18"/></clipPath>
+  <g clip-path="url(#c)"><rect width="1280" height="540" fill="#06070a"/><rect width="1280" height="540" fill="url(#grid)"/></g>
+  <g font-family="-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Helvetica,Arial,sans-serif">
+    <text x="72" y="84" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="15" letter-spacing="5" fill="#c9a96e">HASHCODER, IN YOUR REPOSITORY</text>
+    <text x="72" y="134" font-size="40" font-weight="700" fill="#f2efe8" letter-spacing="-1">Finds, changes, proves, then commits as you.</text>
+    <rect x="72" y="172" width="262" height="252" rx="14" fill="#15130f" stroke="#c9a96e" stroke-opacity="0.6"/>
+    <text x="100" y="214" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="16" letter-spacing="3" fill="#c9a96e">01</text>
+    <text x="100" y="258" font-size="25" font-weight="700" fill="#f2efe8" letter-spacing="-0.4">Finds the files</text>
+    <text x="100" y="298" font-size="17" fill="#9a978f">Ranks files by the rare</text>
+    <text x="100" y="325" font-size="17" fill="#9a978f">words in your request,</text>
+    <text x="100" y="352" font-size="17" fill="#9a978f">with an outline of a</text>
+    <text x="100" y="379" font-size="17" fill="#9a978f">large project</text>
+    <path d="M341 298h14m-5-5 5 5-5 5" fill="none" stroke="#c9a96e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="362" y="172" width="262" height="252" rx="14" fill="#0d0f14" stroke="#c9a96e" stroke-opacity="0.22"/>
+    <text x="390" y="214" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="16" letter-spacing="3" fill="#c9a96e">02</text>
+    <text x="390" y="258" font-size="25" font-weight="700" fill="#f2efe8" letter-spacing="-0.4">Changes with care</text>
+    <text x="390" y="298" font-size="17" fill="#9a978f">Reads a file and what</text>
+    <text x="390" y="325" font-size="17" fill="#9a978f">uses it first, and keeps</text>
+    <text x="390" y="352" font-size="17" fill="#9a978f">its line endings and</text>
+    <text x="390" y="379" font-size="17" fill="#9a978f">encoding</text>
+    <path d="M631 298h14m-5-5 5 5-5 5" fill="none" stroke="#c9a96e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="652" y="172" width="262" height="252" rx="14" fill="#0d0f14" stroke="#c9a96e" stroke-opacity="0.22"/>
+    <text x="680" y="214" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="16" letter-spacing="3" fill="#c9a96e">03</text>
+    <text x="680" y="258" font-size="25" font-weight="700" fill="#f2efe8" letter-spacing="-0.4">Proves it by code</text>
+    <text x="680" y="298" font-size="17" fill="#9a978f">Tests, a build or a syntax</text>
+    <text x="680" y="325" font-size="17" fill="#9a978f">check prove each change;</text>
+    <text x="680" y="352" font-size="17" fill="#9a978f">nothing is taken on the</text>
+    <text x="680" y="379" font-size="17" fill="#9a978f">model's word</text>
+    <path d="M921 298h14m-5-5 5 5-5 5" fill="none" stroke="#c9a96e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="942" y="172" width="262" height="252" rx="14" fill="#0d0f14" stroke="#c9a96e" stroke-opacity="0.22"/>
+    <text x="970" y="214" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="16" letter-spacing="3" fill="#c9a96e">04</text>
+    <text x="970" y="258" font-size="25" font-weight="700" fill="#f2efe8" letter-spacing="-0.4">Commits as you</text>
+    <text x="970" y="298" font-size="17" fill="#9a978f">Signed as your commits</text>
+    <text x="970" y="325" font-size="17" fill="#9a978f">are, when you ask. A push</text>
+    <text x="970" y="352" font-size="17" fill="#9a978f">is asked every time, and</text>
+    <text x="970" y="379" font-size="17" fill="#9a978f">never forced</text>
+    <rect x="72" y="448" width="1136" height="60" rx="12" fill="#0d0f14" stroke="#c9a96e" stroke-opacity="0.22"/>
+    <text x="100" y="484" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" letter-spacing="3.5" fill="#c9a96e">ITS OWN GIT TOOLS</text>
+    <text x="330" y="484" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="16" fill="#f2efe8">git_status · git_diff · git_commit · git_branch · git_push · git_pull</text>
+  </g>
+  <rect x="0.5" y="0.5" width="1279" height="539" rx="17.5" fill="none" stroke="#c9a96e" stroke-opacity="0.35"/>
+</svg>

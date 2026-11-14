@@ -8,6 +8,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [4.0.0] — 2026-11-14
+
+Shows its work. Every chat agent shows what it searched and read, marks the
+source of each sentence and says what nothing it read supports, and runs on
+the shared agent loop on a cloud model. HashCoder works in your git
+repository, finds its way in large projects, shows a run in phases with a
+receipt, and treats Windows as a first-class system.
+
 ### Added
 
 - **A chat agent shows its work while it answers, and how it got there
@@ -3869,7 +3877,8 @@ First public release. macOS Apple Silicon, unsigned, 8.9 MB DMG.
 
 Development history predating the first public release was not kept as a changelog. The repository history begins on 2026-05-16.
 
-[Unreleased]: https://github.com/Hash-7777/HashCortX/compare/v3.3.0...HEAD
+[Unreleased]: https://github.com/Hash-7777/HashCortX/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v4.0.0
 [3.3.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v3.3.0
 [3.0.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v3.0.0
 [2.6.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v2.6.0

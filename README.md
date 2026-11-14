@@ -24,7 +24,7 @@ on your keys and your machine. No backend, no telemetry, no account.
 <img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-2d333b?style=flat-square&logo=apple&logoColor=c9d1d9">
 <img alt="Windows 10" src="https://img.shields.io/badge/Windows%2010-2d333b?style=flat-square&logo=windows&logoColor=c9d1d9">
 <img alt="Built with Tauri v2" src="https://img.shields.io/badge/Tauri%20v2-2d333b?style=flat-square&logo=tauri&logoColor=c9d1d9">
-<img alt="Version 3.3.0" src="https://img.shields.io/badge/v3.3.0-2d333b?style=flat-square">
+<img alt="Version 4.0.0" src="https://img.shields.io/badge/v4.0.0-2d333b?style=flat-square">
 
 <br>
 
@@ -46,7 +46,7 @@ on your keys and your machine. No backend, no telemetry, no account.
 | **An agent that asks first** | Commands, deletions, web pages and anything outside your project wait for your yes. Every file change is a diff you can keep or undo. |
 | **Readable to the last line** | MIT. Vanilla JavaScript and Rust, no bundler, no minified app code. |
 
-> **Version 3.3.0, the focus release.** Local models answer sooner, HashCoder does what was asked and no more, and a message can be sent while a model works. [What is new](https://github.com/Hash-7777/HashCortX/releases/tag/v3.3.0).
+> **Version 4.0.0, shows its work.** Every agent shows what it searched and read, marks the source of each sentence and says what nothing it read supports, and HashCoder works in your git repository. [What is new](https://github.com/Hash-7777/HashCortX/releases/tag/v4.0.0).
 
 ## See it run
 
@@ -89,7 +89,7 @@ From the Hash ecosystem: your music, your Mac's vital signs and its notices in t
 
 | | |
 |---|---|
-| **Chats** | Every provider in one conversation, with projects, attachments, memory, a local knowledge base, a queue for messages sent while a model works, and versions of every edited message and regenerated answer |
+| **Chats** | Every provider in one conversation, with projects, attachments, memory, a local knowledge base, a queue for messages sent while a model works, versions of every edited message and regenerated answer, and agents that show what they searched and read, with the source of each sentence marked |
 | **HashCoder** | A coding agent on your real project: file tree, diffs, terminal, Undo |
 | **Agent Swarm** | Teams of agents on any mix of models, built on a canvas or designed from your task |
 | **3D Forge** | Describe a part, get a dimensioned solid in its own colours. STL, OBJ, 3MF and STEP, in millimetres |
@@ -111,6 +111,7 @@ It works on your real files. Every edit is a diff with **Keep** and **Undo**, te
 - **Fits the model.** Cloud models get a map of your code; smaller local models read one line per tool, and small ones get a light mode that writes whole files while HashCoder does the tool work.
 - **Does what you asked, and no more.** No features, files or fixes you did not ask for, and an answer of a few plain sentences: what changed, where, and what ran.
 - **Keeps what you did not ask to change.** An edit that drops a function, a section or a heading is sent back, and what you say to leave alone is left alone.
+- **Works in your repository.** Its own git tools read the status and the changes, commit when you ask, signed as your commits are, and make a branch, push or pull only after asking you each time, never forced.
 - **Offers a way on when it stops short.** A run that ends stuck, at its limit or with parts of a several-part request still open offers once more with a hint, or a fresh start on a stronger model you have, from your request and what it already did.
 - **Hands off part of a big task, if you switch it on.** New, and not yet proven on real runs, so it is off until you turn it on: a strong model can start sub-agents on the same model, one that reads and reports or one that changes only the files it is given, and HashCortX checks each report before the model reads it.
 - **Asks as much as you choose.** Manual asks before every change and is where it starts; Accept edits writes project files freely; Auto adds a fixed list of read, search and check commands.

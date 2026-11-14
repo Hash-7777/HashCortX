@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 604" width="1280" height="604" role="img" aria-label="Every answer shows where it came from. While it works: what it is doing now, such as looking up Eiffel Tower on Wikipedia; each part of your question, with a line to the source that gives it; and each source it read as a card. Once it is done: the answer with a numbered mark after each sentence a source backs and a question mark after one nothing read supports; each part at a glance; how many sentences come from what it read; and a box to check before relying on it, listing what is not in anything it read.">
+  <defs>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#8b6d2c"/>
+    <stop offset="0.28" stop-color="#c9a96e"/>
+    <stop offset="0.5" stop-color="#f6e7c1"/>
+    <stop offset="0.72" stop-color="#c9a96e"/>
+    <stop offset="1" stop-color="#8b6d2c"/>
+  </linearGradient>
+  <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#c9a96e" stop-opacity="0"/>
+    <stop offset="0.5" stop-color="#c9a96e" stop-opacity="0.85"/>
+    <stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+  </linearGradient>
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+    <path d="M32 0H0V32" fill="none" stroke="#c9a96e" stroke-opacity="0.06" stroke-width="1"/>
+  </pattern>
+  <radialGradient id="glow" cx="0.770" cy="0.504" r="0.42">
+    <stop offset="0" stop-color="#c9a96e" stop-opacity="0.30"/>
+    <stop offset="0.45" stop-color="#c9a96e" stop-opacity="0.07"/>
+    <stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+  </radialGradient>
+  </defs>
+  <clipPath id="c"><rect width="1280" height="604" rx="18"/></clipPath>
+  <g clip-path="url(#c)"><rect width="1280" height="604" fill="#06070a"/><rect width="1280" height="604" fill="url(#grid)"/></g>
+  <g font-family="-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Helvetica,Arial,sans-serif">
+    <text x="72" y="84" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="15" letter-spacing="5" fill="#c9a96e">SHOWS ITS WORK</text>
+    <text x="72" y="134" font-size="40" font-weight="700" fill="#f2efe8" letter-spacing="-1">Every answer shows where it came from.</text>
+    <rect x="72" y="172" width="540" height="396" rx="16" fill="#0d0f14" stroke="#c9a96e" stroke-opacity="0.22"/>
+    <text x="100" y="210" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" letter-spacing="3.5" fill="#c9a96e">WHILE IT WORKS</text>
+    <g fill="none" stroke="#c9a96e" stroke-width="1.6" stroke-linecap="round"><circle cx="108" cy="246" r="7"/><path d="m113 251 6 6"/></g>
+    <text x="128" y="252" font-size="18" fill="#9a978f">Looking up <tspan fill="#f2efe8" font-weight="600">Eiffel Tower</tspan> on Wikipedia</text>
+    <text x="584" y="251" text-anchor="end" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="14" fill="#6f6c66">8.1 s</text>
+    <rect x="100" y="276" width="484" height="128" rx="12" fill="none" stroke="#c9a96e" stroke-opacity="0.18"/>
+    <text x="120" y="304" font-size="14" fill="#6f6c66">Your question</text>
+    <rect x="462" y="297" width="56" height="3" rx="1.5" fill="#c9a96e" fill-opacity="0.18"/><rect x="462" y="297" width="28" height="3" rx="1.5" fill="#c9a96e"/><text x="564" y="304" text-anchor="end" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" fill="#9a978f">1/2</text>
+    <g fill="none" stroke="#c9a96e" stroke-width="1.6" stroke-linecap="round"><circle cx="128" cy="338" r="8"/><path d="m124 338 3 3 5-6"/></g><text x="146" y="344" font-size="16" fill="#f2efe8">When was it completed</text>
+    <path d="M326 338 C 346 338, 346 338, 364 338" fill="none" stroke="#c9a96e" stroke-width="1.4"/>
+    <rect x="368" y="325" width="26" height="26" rx="7" fill="none" stroke="#c9a96e" stroke-opacity="0.6"/><g fill="none" stroke="#c9a96e" stroke-width="1.4"><circle cx="380" cy="337" r="5"/><path d="m384 341 4 4"/></g><text x="404" y="343" font-size="15" fill="#9a978f">Wikipedia · Eiffel Tower</text>
+    <circle cx="128" cy="378" r="8" fill="none" stroke="#6f6c66" stroke-width="1.6"/><text x="146" y="384" font-size="16" fill="#9a978f">How tall is it</text>
+    <rect x="100" y="420" width="484" height="100" rx="12" fill="none" stroke="#c9a96e" stroke-opacity="0.18"/>
+    <g fill="none" stroke="#c9a96e" stroke-opacity="0.7" stroke-width="1.2"><rect x="118" y="436" width="46" height="66" rx="6"/><path d="M126 452h30M126 462h30M126 472h20M126 482h26"/></g>
+    <text x="182" y="452" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" fill="#6f6c66">en.wikipedia.org</text><text x="182" y="476" font-size="17" font-weight="600" fill="#f2efe8">Eiffel Tower</text><text x="182" y="499" font-size="14" fill="#9a978f">The tower is 330 metres (1,083 ft) tall, about the</text>
+    <rect x="644" y="172" width="564" height="396" rx="16" fill="#0d0f14" stroke="#c9a96e" stroke-opacity="0.22"/>
+    <text x="672" y="210" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" letter-spacing="3.5" fill="#c9a96e">ONCE IT IS DONE</text>
+    <g fill="none" stroke="#c9a96e" stroke-width="1.6" stroke-linecap="round"><circle cx="680" cy="246" r="8"/><path d="m676 246 3 3 5-6"/></g><text x="698" y="252" font-size="16" fill="#9a978f">Answered · checked against what it read</text>
+    <text x="672" y="290" font-size="18" fill="#f2efe8">The Eiffel Tower was completed in 1889.</text><rect x="1007.0" y="275" width="20" height="19" rx="5" fill="none" stroke="#c9a96e" stroke-opacity="0.8"/><text x="1017.0" y="289" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="12" fill="#c9a96e">1</text>
+    <text x="672" y="312" font-size="18" fill="#f2efe8">It is 324 metres tall.</text><rect x="838.0" y="297" width="20" height="19" rx="5" fill="none" stroke="#e3a857" stroke-opacity="0.8"/><text x="848.0" y="311" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="12" fill="#e3a857">?</text>
+    <rect x="672" y="336" width="508" height="124" rx="12" fill="none" stroke="#c9a96e" stroke-opacity="0.18"/>
+    <g fill="none" stroke="#c9a96e" stroke-width="1.4" stroke-linecap="round"><path d="M690 358h4M690 364h4M690 370h4M698 358h10M698 364h10M698 370h7"/></g><text x="716" y="369" font-size="15" fill="#f2efe8">At a glance</text><text x="1160" y="369" text-anchor="end" font-size="13" fill="#6f6c66">2 of 2 answered</text>
+    <line x1="688" y1="384" x2="1164" y2="384" stroke="#c9a96e" stroke-opacity="0.12"/>
+    <g fill="none" stroke="#c9a96e" stroke-width="1.6" stroke-linecap="round"><circle cx="696" cy="405" r="7"/><path d="m693 405 2.5 2.5 4-5"/></g><text x="712" y="410" font-size="13" fill="#6f6c66">When was it completed</text><text x="894" y="410" font-size="16" fill="#f2efe8">Completed in 1889.</text><rect x="1140.0" y="395" width="20" height="19" rx="5" fill="none" stroke="#c9a96e" stroke-opacity="0.8"/><text x="1150.0" y="409" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="12" fill="#c9a96e">1</text>
+    <line x1="688" y1="422" x2="1164" y2="422" stroke="#c9a96e" stroke-opacity="0.12"/>
+    <g fill="none" stroke="#e3a857" stroke-width="1.6" stroke-linecap="round"><circle cx="696" cy="436" r="7"/><path d="M694 434a2 2 0 1 1 2.6 1.9v1.1M696.6 439.6v.2"/></g><text x="712" y="441" font-size="13" fill="#6f6c66">How tall is it</text><text x="894" y="441" font-size="16" fill="#f2efe8">324 metres tall.</text><rect x="1140.0" y="426" width="20" height="19" rx="5" fill="none" stroke="#e3a857" stroke-opacity="0.8"/><text x="1150.0" y="440" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="12" fill="#e3a857">?</text>
+    <g fill="none" stroke="#c9a96e" stroke-width="1.5" stroke-linejoin="round"><path d="M680 482l7 3v5c0 4-3 7-7 8.5-4-1.5-7-4.5-7-8.5v-5z"/></g><text x="696" y="497" font-size="15" fill="#9a978f">Grounding</text><rect x="782" y="488" width="22" height="5" rx="2.5" fill="#c9a96e"/><rect x="809" y="488" width="22" height="5" rx="2.5" fill="none" stroke="#c9a96e"/><text x="844" y="497" font-size="15" fill="#9a978f">1 of 2 sentences come from what it read</text>
+    <rect x="672" y="516" width="508" height="44" rx="10" fill="#e3a857" fill-opacity="0.08" stroke="#e3a857" stroke-opacity="0.35"/><text x="692" y="543" font-size="15" fill="#e3a857" font-weight="600">Check before relying on it <tspan fill="#9a978f" font-weight="400">· not in anything it read: 324 metres.</tspan></text>
+  </g>
+  <rect x="0.5" y="0.5" width="1279" height="603" rx="17.5" fill="none" stroke="#c9a96e" stroke-opacity="0.35"/>
+</svg>
