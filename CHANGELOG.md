@@ -10,6 +10,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A chat reply is formatted as it is written, at a reading pace.** A
+  reply used to arrive as raw text, its marks for bold, code and tables on
+  show, every word as fast as the provider sent it, and then jump into its
+  formatted shape when it was done. It is now formatted from its first
+  word by the same formatter as the finished reply, shown a word at a time
+  at a steady pace that catches up when more has arrived, with a thin
+  mark at its end while it is written. A mark not yet closed, half a link
+  or a table without its rule line is held back until the rest arrives,
+  and the folded thinking sits above it from the start, so nothing moves
+  when the reply is done. With less motion asked for, it is shown as it
+  arrives.
+
 - **Pictures made by OpenAI and OpenRouter models, and a picture you
   attach changed rather than imagined.** OpenAI's picture models and every
   model OpenRouter lists as answering with pictures now appear in the

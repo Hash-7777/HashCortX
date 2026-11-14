@@ -973,6 +973,12 @@
   .thought summary:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
   .thought-text { margin-top: 6px; border-left: 2px solid var(--line); padding-left: 10px; font-size: 12.5px; line-height: 1.55; color: var(--text-dim); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow: auto; }
   @media (prefers-reduced-motion: reduce) { .thought summary::before { transition: none; } }
+  /* The mark at the end of a reply being written (js/chat/live-text.js): a thin
+     bar that breathes while words arrive, gone when the reply is drawn whole. */
+  .live-caret { display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -0.16em; border-radius: 1px; background: var(--accent); opacity: .8; animation: hcLiveCaret 1.1s ease-in-out infinite; }
+  @keyframes hcLiveCaret { 0%, 100% { opacity: .8; } 50% { opacity: .25; } }
+  @media (prefers-reduced-motion: reduce) { .live-caret { animation: none; } }
+  body.low-gpu .live-caret { animation: none; }
   .attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .attachment {
     background: rgba(255,255,255,0.04); border: 1px solid var(--line);

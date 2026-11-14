@@ -4275,7 +4275,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         return `<div class="mermaid-wrap"><div class="mermaid">${escapeHtml(src)}</div></div>`;
       }
       let html = escapeHtml(src);
-      if (window.hljs) {
+      if (window.hljs && (!_liveFormat || (label && window.hljs.getLanguage(label)))) {   // guessing a language is slow: not on every frame of a reply being written
         try {
           html = label && window.hljs.getLanguage(label)
             ? window.hljs.highlight(src, { language: label, ignoreIllegals: true }).value
@@ -4877,24 +4877,16 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
   }
 
-  // RAF-throttled bubble updater.
-  // During streaming we write raw text (textContent) — zero HTML parsing, zero
-  // markdown overhead per token. formatContent runs exactly once at the end via
-  // the post-stream render() call, so the final view is still fully formatted.
-  let _rafPending = false;
-  let _rafId = null;
-  let _pendingBubbleText = "";
-  function writeLastBubbleText() {
-    // Only while a reply is arriving. After that render() owns the bubble and
-    // has put formatted markdown in it; a paint landing later would replace
-    // that with the raw source.
-    if (!state.streaming) return;
-    const last = msgs.querySelector(".msg.assistant:last-of-type .bubble");
-    if (last) {
-      last.classList.remove("thinking-bubble");
-      last.textContent = _pendingBubbleText;   // raw — no escapeHtml, no regex
-      HCFollow.keep(msgs);
-    }
+  // A reply as it arrives: formatted from its first word by the formatter the
+  // finished reply uses, and shown at a reading pace (js/chat/live-text.js).
+  // render() draws it once more when it is done, matching what was shown.
+  let _live = null, _liveFormat = false;   // _liveFormat: a code block without a language waits for the end to be coloured
+  function writeLastBubbleText(text) {
+    if (!state.streaming) return;   // after that render() owns the bubble
+    const m = state.messages[state.messages.length - 1];
+    _liveFormat = true; let html; try { html = formatContent(text); } finally { _liveFormat = false; }
+    window.HCLiveText.into(msgs.querySelector(".msg.assistant:last-of-type .bubble"), html, () => m && m.role === "assistant" ? HCThought.element(m.thinking, (m.firstTokenAt && m.thoughtStart) ? m.firstTokenAt - m.thoughtStart : m.thoughtMs) : null);
+    HCFollow.keep(msgs);
   }
   // What a model thinks before it answers is shown as it arrives, and kept,
   // folded, above the answer (js/chat/thought.js). Never sent back to a model.
@@ -4922,24 +4914,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       HCFollow.keep(msgs);
     }
   }
-  function flushPendingBubbleUpdate() {
-    if (_rafId != null) cancelAnimationFrame(_rafId);
-    _rafId = null;
-    if (_rafPending) {
-      _rafPending = false;
-      writeLastBubbleText();
-    }
-    _pendingBubbleText = "";  // clear stale text so it can never bleed onto the next message
-  }
+  function flushPendingBubbleUpdate() { if (_live) _live.stop(); _live = null; }   // the reply is done: render() draws it whole
   function updateLastBubble(text) {
-    _pendingBubbleText = text;
-    if (_rafPending) return;          // already scheduled for this frame
-    _rafPending = true;
-    _rafId = requestAnimationFrame(() => {
-      _rafPending = false;
-      _rafId = null;
-      writeLastBubbleText();
-    });
+    (_live || (_live = window.HCLiveText.create({ paint: writeLastBubbleText, reduced: !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches }))).push(text);
   }
 
   function updateComparePane(idx, side, branch) {

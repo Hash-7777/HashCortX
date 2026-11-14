@@ -153,6 +153,7 @@
     '/js/chat/web-search.js',
     '/js/chat/ran-code.js',
     '/js/chat/thought.js',
+    '/js/chat/live-text.js',
     '/js/chat/exact.js',
     '/js/chat/clock.js',
     '/js/chat/sources.js',

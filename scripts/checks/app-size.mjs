@@ -247,7 +247,9 @@ const LINE_BUDGET = {
   // js/agent-shape.js withPictures, instead of refused here.
   // 6385, down 17: what each picture provider is sent and sends back is
   // js/picture-make.js; only the sending is here.
-  'js/app.js': 6385,
+  // 6362, down 23: a reply being written is formatted and paced by
+  // js/chat/live-text.js, not written here as raw text.
+  'js/app.js': 6362,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
