@@ -207,6 +207,15 @@ console.log('\nWhat was attached:');
   ok('Finance reads and empties its box before it waits on anything, and puts it back on a refusal', /input\.value = ""; pendingFiles = \[\]; renderFileList\(\);   \/\/ read and emptied/.test(fin) && /if \(prep\.refusal\) \{ send\.disabled = false; putBack\(\);/.test(fin) && /const text  = typed \|\| /.test(fin));
 }
 
+console.log('\nWhat the queue says about when it is sent, changed while a run reads it at each step:');
+{
+  const c = Q.forComposer({ input: box('') });
+  ok('it says what it was made with', c.when === 'Sends when the reply finishes', String(c.when));
+  ok('...and what it is told while a run reads it at each step', typeof c.setWhen === 'function' && (c.setWhen('Read at the next step'), c.when === 'Read at the next step'));
+  ok('...and goes back to what it was made with when told nothing', (c.setWhen(''), c.when === 'Sends when the reply finishes') && (c.setWhen(null), c.when === 'Sends when the reply finishes'));
+  ok('the label on screen is the one it holds', /head\.querySelector\('\.hc-queue-when'\)\.textContent = whenNow;/.test(src('js', 'queue.js')) && /const label = box && box\.querySelector\('\.hc-queue-when'\); if \(label\) label\.textContent = whenNow;/.test(src('js', 'queue.js')));
+}
+
 console.log('\nHashCoder reads it at the next step:');
 {
   const c = Q.forComposer({ input: box(''), when: 'Read at the next step' });

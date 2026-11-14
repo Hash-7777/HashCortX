@@ -66,7 +66,7 @@ const words = (content) => ({ content, tool_calls: [] });
 const shaped = (names) => names.map((name) => ({ type: 'function', function: { name, description: name, parameters: { type: 'object', properties: {} } } }));
 
 /** One chat run: `script(messages, n, tools)` is the model, `results[name]` what each tool answers. */
-async function chatRun({ script, agent = { id: 'builtin_url_reader' }, names = ['fetch_url', 'web_search'], results = {}, history = [], signal, fallback, request = 'Read https://site.example/hours and tell me when the bakery opens.' } = {}) {
+async function chatRun({ script, queue = null, added = null, agent = { id: 'builtin_url_reader' }, names = ['fetch_url', 'web_search'], results = {}, history = [], signal, fallback, request = 'Read https://site.example/hours and tell me when the bakery opens.' } = {}) {
   const coder = { request: 'HashCoder request', asks: ['x', 'y', 'z'], plan: { steps: [] }, said: 'HashCoder said', TOOL_DEFINITIONS: [] };
   const coderBefore = json(coder);
   sandbox.HC = { code: coder, guard: { noteBlocked: () => {} }, undo: { lastFor: () => null } };
@@ -74,7 +74,7 @@ async function chatRun({ script, agent = { id: 'builtin_url_reader' }, names = [
   const messages = [{ role: 'system', content: 'You read web pages for the person.' }, ...history, { role: 'user', content: request }];
   let n = 0;
   const out = await R.run({
-    agent, assistant: {}, messages, tools: shaped(names), tracker, temperature: 0.3, signal,
+    agent, assistant: {}, queue, added, messages, tools: shaped(names), tracker, temperature: 0.3, signal,
     onStatus: (t, k) => statuses.push([t, k]), onFinalToken: () => {}, model: 'cloud:groq:some-model', request,
     call: async (m, t) => { n++; sent.push({ msgs: m.map((x) => ({ ...x })), tools: t.map((x) => x.function.name) }); const r = script(m, n, t); if (r instanceof Error) throw r; return r; },
     runTool: async (name, args, onStatus, tr) => { ran.push(name); const r = results[name] ?? JSON.stringify({ text: `${name} result` }); tr.push({ name, ok: !/"error"/.test(r) }); return r; },
@@ -146,6 +146,33 @@ await (async () => {
   ok('...and how many, when more than one', two.out === 'Saved 2 facts to memory.', String(two.out));
   const failedSave = await chatRun({ names: ['remember_fact'], results: { remember_fact: JSON.stringify({ error: 'Memory is off.' }) }, script: (m, n) => (n === 1 ? turnOf(callOf('remember_fact', { key: 'a', value: '1' })) : words('')) });
   ok('a save that failed is not reported as saved', /did not write an answer/.test(String(failedSave.out)), String(failedSave.out));
+})();
+
+console.log('\nA message sent while it works is read at its next step:');
+await (async () => {
+  if (typeof R.run !== 'function') return;
+  let takes = 0, label = 'Sends when the reply finishes';
+  const labels = [];
+  const queue = { takeNow: () => (++takes === 2 ? { text: 'Is it open on Sunday?', count: 1, files: [], kinds: ['add'] } : null),
+    get when() { return label; }, setWhen: (t) => { label = t || 'Sends when the reply finishes'; labels.push(label); } };
+  const shown = [];
+  const r = await chatRun({ queue, added: (text) => shown.push(text), script: (m, n) => (n === 1 ? turnOf(callOf('fetch_url', { url: 'https://site.example/hours' })) : words('It opens at seven, Sundays too.')) });
+  const second = r.sent[1] ? r.sent[1].msgs : [];
+  const at = second.findIndex((m) => m.role === 'user' && /Is it open on Sunday\?/.test(String(m.content)));
+  ok('it reaches the model at the next step, after the result it was waiting for', at > 0 && second.slice(0, at).some((m) => m.role === 'tool'), JSON.stringify(second.map((m) => m.role)));
+  ok('...is shown in the conversation as the person\'s own', JSON.stringify(shown) === '["Is it open on Sunday?"]');
+  ok('...and is written into the reply\'s record of the run', r.events.some((e) => e[0] === 'thinking' && /added a message while it worked/.test(e[1])));
+  ok('the queue says it is read at the next step while the run goes, and what it said before once it ends', labels[0] === R.READ_AT_STEP && labels.at(-1) === 'Sends when the reply finishes' && label === 'Sends when the reply finishes', JSON.stringify(labels));
+  const failing = await chatRun({ queue: { takeNow: () => null, when: 'X', setWhen: (t) => { label = t; } }, script: () => new Error('the model is down') });
+  ok('...and goes back even when the run fails', label === 'X' && failing.out instanceof Error);
+  const list = [{ role: 'user', content: 'a' }, { role: 'assistant', content: '' }];
+  R.placeAdded?.(list, list[1], 'b');
+  ok('in the conversation it goes just above the reply it changed', JSON.stringify(list.map((m) => m.content)) === '["a","b",""]' && list[1].role === 'user' && list[1].added === true);
+  const none = [{ role: 'user', content: 'a' }];
+  R.placeAdded?.(none, { content: 'x' }, 'b');
+  ok('...or last, when the reply is not in it', JSON.stringify(none.map((m) => m.content)) === '["a","b"]');
+  const app = src('js', 'app.js');
+  ok('the chat hands its queue to the run, and shows a message taken from it', /queue: chatQueue, added: \(text\) => \{ window\.HCChatAgentRun\.placeAdded\(state\.messages, assistant, text\); render\(\); \}/.test(app));
 })();
 
 console.log('\nAn agent a person made answers from what it knows:');

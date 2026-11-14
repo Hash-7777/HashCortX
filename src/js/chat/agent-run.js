@@ -33,6 +33,16 @@
   /** The agents that run on the shared loop, moved one at a time. */
   const ON_LOOP = ['builtin_url_reader', 'builtin_researcher', 'builtin_papers', 'builtin_deep_research', 'builtin_hash_ai', 'builtin_coder', 'builtin_medical_lexi', 'builtin_ats_auditor'];
   const RAN_STEP = 'Sent back: Python it says ran, and none ran';
+  /** What the chat's queue says while an agent on the loop reads it at each step. */
+  const READ_AT_STEP = 'Read at the next step, or sent when the reply finishes';
+  const ADDED_STEP = 'You added a message while it worked';
+
+  /** A message taken from the queue mid-run, put in the conversation just above the reply it changed, or last. */
+  function placeAdded(list, assistant, text) {
+    const at = list.indexOf(assistant);
+    list.splice(at < 0 ? list.length : at, 0, { role: 'user', content: String(text || ''), added: true });
+    return list;
+  }
   /** The agents that may answer from what they know, with every agent a person made: their details are held to a source only once they have searched (js/chat/finish.js). */
   const FROM_KNOWLEDGE = ['builtin_hash_ai', 'builtin_coder'];
   /** The agents that grade, each grade held to a search and each source to what one returned (js/chat/finish.js). */
@@ -54,7 +64,8 @@
    * runTool(name, args, onStatus, tracker) the chat's tool runner, which
    * answers in JSON; record(assistant, type, label, data); typewriter(text,
    * onToken, signal); fallback() the run without tools; closing, the words
-   * asking for an answer when no tool may be used.
+   * asking for an answer when no tool may be used; queue, the chat's queue
+   * (js/queue.js), read at each step; added(text) shows a message taken from it.
    */
   async function run(d) {
     const loop = window.HCAgentLoop, F = window.HCChatFinish, Ctx = window.HCAgentContext, Lim = window.HCModelLimits, S = window.HCAgentShape, V = window.HCCodeVerify;
@@ -77,11 +88,12 @@
     const python = names.includes('execute_python');
     let found = null;
     const ui = {
-      trace: () => {}, terminal: () => {}, changed: () => {}, added: () => {},
+      trace: () => {}, terminal: () => {}, changed: () => {},
       status: (text, kind) => { if (d.onStatus) d.onStatus(text, kind === 'thinking' ? 'thinking' : 'running'); },
       wait: () => ({ finish() {}, remove() {} }),
       step: (s) => { if (s && s.verb === 'CHECK') { d.record(d.assistant, 'thinking', s.object); if (d.onStatus) d.onStatus(s.object, 'warn'); } },
       tool: (name, args) => { d.record(d.assistant, 'tool_call', name, args || {}); return { name }; },
+      added: (text) => { d.record(d.assistant, 'thinking', ADDED_STEP); if (d.added) d.added(text); },
       toolDone: (el, result) => d.record(d.assistant, 'tool_result', el && el.name, parse(result)),
       answer: () => {},
       error: (e) => d.record(d.assistant, 'error', String((e && e.message) || e)),
@@ -98,11 +110,13 @@
       return { finish: [...c.finish, ran], left: () => { const l = c.left(); found = l.found; return l; }, wrap: c.wrap };
     };
     let text;
+    const queue = d.queue || null, wasWhen = queue ? queue.when : '';
+    if (queue && queue.setWhen) queue.setWhen(READ_AT_STEP);   // what is sent while it works is read at its next step
     try {
       text = await loop.run({ scope, messages, tools, label: '', signal: d.signal, ui, temperature: d.temperature,
         state: { size: 'full', local: false, light: false, projectRoot: null, projectChecks: null, codeMap: null },
         prefs: () => ({ prove: true }), call: (m, t, temp, s) => d.call(m, t, temp, s), compress,
-        queue: () => null, conversation: () => null, opened: () => {}, baseName: (p) => String(p || ''), toolObject: (name) => name, checks });
+        queue: () => queue, conversation: () => messages, opened: () => {}, baseName: (p) => String(p || ''), toolObject: (name) => name, checks });
     } catch (e) {
       // A model that refuses tools, before any ran, answers without them as it did.
       if (!(d.signal && d.signal.aborted) && /tool|function/i.test(String((e && e.message) || '')) && !(d.tracker || []).length && d.fallback) {
@@ -110,6 +124,8 @@
         return d.fallback();
       }
       throw e;
+    } finally {
+      if (queue && queue.setWhen) queue.setWhen(wasWhen);   // past the steps, what is sent waits for the reply again
     }
     // Stopped with nothing said: asked once, with no tools, for its answer.
     if (!String(text || '').trim() && !(d.signal && d.signal.aborted) && d.closing) {
@@ -128,5 +144,5 @@
     return final;
   }
 
-  window.HCChatAgentRun = { ON_LOOP, FROM_KNOWLEDGE, GRADED, RAN_STEP, onLoop, run };
+  window.HCChatAgentRun = { ON_LOOP, FROM_KNOWLEDGE, GRADED, RAN_STEP, READ_AT_STEP, ADDED_STEP, onLoop, placeAdded, run };
 })();

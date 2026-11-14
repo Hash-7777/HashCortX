@@ -5891,7 +5891,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
 
     // An agent moved onto the shared loop runs there, the conversation sized to its model (js/chat/agent-run.js); the rest keep the fixed trim below.
-    if (window.HCChatAgentRun?.onLoop(agent, modelEl.value)) return window.HCChatAgentRun.run({ agent, assistant, messages: baseMessages, tools, tracker, temperature, signal, onStatus, onFinalToken, model: modelEl.value, request: userText, call: (m, t, temp, s) => turns.turn({ messages: m, tools: t, temperature: temp, signal: s }), runTool: runOneTool, record: recordAgentEvent, typewriter: typewriterIntoBubble, fallback: () => runAgentFallback({ agent, assistant, signal, onStatus, onFinalToken }), closing: AGENT_CLOSING_TURN });
+    if (window.HCChatAgentRun?.onLoop(agent, modelEl.value)) return window.HCChatAgentRun.run({ agent, assistant, messages: baseMessages, tools, tracker, temperature, signal, onStatus, onFinalToken, model: modelEl.value, request: userText, queue: chatQueue, added: (text) => { window.HCChatAgentRun.placeAdded(state.messages, assistant, text); render(); }, call: (m, t, temp, s) => turns.turn({ messages: m, tools: t, temperature: temp, signal: s }), runTool: runOneTool, record: recordAgentEvent, typewriter: typewriterIntoBubble, fallback: () => runAgentFallback({ agent, assistant, signal, onStatus, onFinalToken }), closing: AGENT_CLOSING_TURN });
     // Trim baseMessages so tool-call iterations have room: keep the base under 8K estimated tokens, leaving ~8K for tool history,
     // dropping the oldest non-system pairs while the estimate is over budget. Each iteration adds an assistant tool-call and a result.
     (function trimBaseToContextBudget() {

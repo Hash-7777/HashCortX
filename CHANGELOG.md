@@ -10,6 +10,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A message sent while a chat agent works is read at its next step.** On
+  a cloud model, what you send while an agent searches or reads waits in
+  the queue above the box, which says it will be read at the next step,
+  and is handed to the agent there, after the results it was waiting for,
+  so the answer takes it in without starting again; its questions join
+  those the answer is checked against. It shows in the conversation as
+  yours, just above the reply it changed. "Send now" stops the reply and
+  sends at once; on a model on this computer a message waits for the reply
+  to finish.
+
 - **Medical Lexi-Check closes every answer with a notice to check with a
   licensed pharmacist or physician.** The app adds it under the answer
   itself, so it is there whatever the model writes, and a copy made with

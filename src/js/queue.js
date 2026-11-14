@@ -12,13 +12,14 @@
 //
 //   · where a reply is written in one go (chat, the ERP agent, Finance, 3D
 //     Forge), the queue is sent as one message when the reply finishes;
-//   · where a run takes several steps (HashCoder), the queue is handed to the
-//     model at the next step, after the results it is waiting for, so the
-//     run takes it into account without starting again (takeNow), and what
-//     is still queued when the run finishes is sent as the next request. A
-//     message taken as a request for after the work in hand (its kind, set by
-//     the workspace's guess or the person's choice) is not handed over: it
-//     waits, and is sent when the run finishes.
+//   · where a run takes several steps (HashCoder, and a chat agent on the
+//     shared loop, which says so in the queue while it runs: setWhen), the
+//     queue is handed to the model at the next step, after the results it is
+//     waiting for, so the run takes it into account without starting again
+//     (takeNow), and what is still queued when the run finishes is sent as the
+//     next request. A message taken as a request for after the work in hand
+//     (its kind, set by the workspace's guess or the person's choice) is not
+//     handed over: it waits, and is sent when the run finishes.
 //
 // A reply that was stopped, or ended in an error, does not send what is
 // queued: it goes back into the box, to be sent or changed. Several queued
@@ -119,6 +120,7 @@
     const takeFiles = () => (att ? att.take() || [] : []);
     const giveFiles = (list) => { if (att && list && list.length) att.give(list); };
     const q = create();
+    let whenNow = when;   // what it says about when it is sent; a run that reads it at each step says so while it goes (setWhen)
     let urgent = false;   // "Send now" was asked for: the queue goes as soon as the work gives way
     const doc = (input && input.ownerDocument) || (typeof document !== 'undefined' ? document : null);
     let box = null, list = null;
@@ -145,7 +147,7 @@
         const head = doc.createElement('div');
         head.className = 'hc-queue-head';
         head.innerHTML = '<span class="hc-queue-pulse" aria-hidden="true"></span><span class="hc-queue-title">Queued</span><span class="hc-queue-count"></span><span class="hc-queue-when"></span><button type="button" class="hc-queue-now" hidden><span class="hc-queue-now-label">Send now</span><svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
-        head.querySelector('.hc-queue-when').textContent = when;
+        head.querySelector('.hc-queue-when').textContent = whenNow;
         const now = head.querySelector('.hc-queue-now');
         now.hidden = typeof interrupt !== 'function';
         now.title = `Stop waiting and send it now (${MAC ? '\u2318' : 'Ctrl+'}Enter)`;
@@ -357,6 +359,9 @@
         }, 0);
       },
       sendNow,
+      /** What it says about when it is sent, for now: `text`, or what it was made with when given nothing. */
+      setWhen(text) { whenNow = String(text || '').trim() || when; const label = box && box.querySelector('.hc-queue-when'); if (label) label.textContent = whenNow; },
+      get when() { return whenNow; },
       get urgent() { return urgent; },
       get size() { return q.size; },
       get items() { return q.items; },
