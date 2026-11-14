@@ -133,6 +133,12 @@ await (async () => {
   let k = 0;
   const empty = await chatRun({ script: (m, n, t) => (t.length ? turnOf(callOf('web_search', { query: `q${++k}` })) : words(/Write your final answer\./.test(String(m.at(-1).content)) ? 'Here is what I found.' : '')) });
   ok('a run that ends with nothing said is asked once, with no tools, for its answer', empty.out === 'Here is what I found.' && empty.sent.at(-1).tools.length === 0, String(empty.out));
+  const saved = await chatRun({ names: ['remember_fact'], results: { remember_fact: JSON.stringify({ ok: true, saved: 'likes: tea' }) }, script: (m, n, t) => (n === 1 ? turnOf(callOf('remember_fact', { key: 'likes', value: 'tea' })) : words('')) });
+  ok('a run that saved a fact and wrote nothing, even when asked, says the fact was saved, as before', saved.out === 'Saved that to memory.', String(saved.out));
+  const two = await chatRun({ names: ['remember_fact'], results: { remember_fact: JSON.stringify({ ok: true }) }, script: (m, n) => (n === 1 ? turnOf(callOf('remember_fact', { key: 'a', value: '1' }), callOf('remember_fact', { key: 'b', value: '2' })) : words('')) });
+  ok('...and how many, when more than one', two.out === 'Saved 2 facts to memory.', String(two.out));
+  const failedSave = await chatRun({ names: ['remember_fact'], results: { remember_fact: JSON.stringify({ error: 'Memory is off.' }) }, script: (m, n) => (n === 1 ? turnOf(callOf('remember_fact', { key: 'a', value: '1' })) : words('')) });
+  ok('a save that failed is not reported as saved', /did not write an answer/.test(String(failedSave.out)), String(failedSave.out));
 })();
 
 const app = src('js', 'app.js');

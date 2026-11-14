@@ -112,6 +112,9 @@
     }
     const left = F.leftLine(found);
     let final = String(text || '');
+    // Nothing written: a fact it saved is said to be saved, as the chat's older loop said it; otherwise that it wrote nothing.
+    const saved = (d.tracker || []).filter((t) => t && t.name === 'remember_fact' && t.ok).length;
+    if (!final && saved) final = `Saved ${saved === 1 ? 'that' : `${saved} facts`} to memory.`;
     if (!final && (d.tracker || []).length) final = `The agent used ${d.tracker.length} tool${d.tracker.length === 1 ? '' : 's'} but did not write an answer. Ask again, or pick another model.`;
     if (final && left) final = `${final}\n\n*${left}*`;
     d.record(d.assistant, 'final', `Final answer · ${final.length} chars`);
