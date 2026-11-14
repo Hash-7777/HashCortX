@@ -101,6 +101,36 @@ await (async () => {
   ok('the loop\'s own line for a page is not used: the chat says its own', plain.left().unconfirmed === null);
 })();
 
+console.log('\nA paper it cites that nothing found:');
+await (async () => {
+  if (typeof F.checks !== 'function') return;
+  const paper = JSON.stringify({ papers: [{ title: 'Tidal breathing in older adults', authors: 'Okafor N, Lind P', year: '2019', pmid: '31234567', doi: '10.5555/tb.2019.04', abstract: 'A cohort of adults.' }] });
+  const papers = (q) => [...ask(q), { role: 'assistant', content: '', tool_calls: [{ id: 'p1', function: { name: 'pubmed_search', arguments: '{"query":"tidal breathing"}' } }] }, { role: 'tool', tool_call_id: 'p1', name: 'pubmed_search', content: paper }];
+  const ids = (t) => (typeof F.citesIn === 'function' ? F.citesIn(t).map((x) => x.shown) : null);
+  ok('the ways a paper is named are read: PMID, a PubMed link, DOI, a DOI link, PMC and arXiv', json(ids('PMID: 31234567; https://pubmed.ncbi.nlm.nih.gov/33445566/ doi 10.5555/tb.2019.04. https://doi.org/10.5555/ZZ.2020.11, PMC7654321, arXiv:2101.01234v2')) === json(['PMID 31234567', 'PMID 33445566', 'DOI 10.5555/tb.2019.04', 'DOI 10.5555/zz.2020.11', 'PMC7654321', 'arXiv 2101.01234']), json(ids('PMID: 31234567; https://pubmed.ncbi.nlm.nih.gov/33445566/ doi 10.5555/tb.2019.04. https://doi.org/10.5555/ZZ.2020.11, PMC7654321, arXiv:2101.01234v2')));
+  ok('...each once, and none in a plain number, a year or a version', json(ids('PMID 31234567 and again PMID 31234567')) === json(['PMID 31234567']) && json(ids('In 2019, 310 adults; version 10.5 of the tool.')) === json([]));
+  ok('...nor in a code block', json(ids('```\nconst doi = "10.5555/x.1";\n```')) === json([]));
+  const c = F.checks({ messages: papers('Find papers on tidal breathing'), sent: sent(), request: 'Find papers on tidal breathing' });
+  ok('a paper the search returned, by PMID or DOI, is not held against it', (await c.finish[2].run('Okafor and Lind followed adults (Okafor, 2019, PMID 31234567; doi:10.5555/TB.2019.04).')) === null);
+  const back = await c.finish[2].run('Okafor (2019, PMID 31234567) agrees with Varga (2021, PMID 33445566, doi 10.5555/zz.2020.11).');
+  ok('a PMID and a DOI nothing found are sent back once, named, and the one found is not', !!back && back.kind === 'facts' && /PMID 33445566/.test(back.message) && /DOI 10\.5555\/zz\.2020\.11/.test(back.message) && !/31234567/.test(back.message), back && back.message);
+  ok('...and are said under the answer', /PMID 33445566/.test(F.leftLine(c.left().found)));
+  const withNote = papers('Find papers on tidal breathing');
+  withNote.push({ role: 'assistant', content: 'Varga (PMID 33445566).' }, { role: 'user', content: back ? back.message : '', note: true });
+  const again = F.checks({ messages: withNote, sent: sent(), request: 'x' });
+  ok('the app\'s own note naming it, and the answer that made it up, are not where it was found', !!(await again.finish[2].run('Varga (PMID 33445566).')));
+  const longer = F.checks({ messages: searched('x', 'PMID 133445566, PMID 334455667 and PMC 76543210'), sent: sent(), request: 'x' });
+  ok('a number found only inside a longer one, either end, is not found', !!(await longer.finish[2].run('See PMID 33445566 and PMC7654321.')) && json(longer.left().found.unsourced.map((u) => u.shown)) === json(['PMID 33445566', 'PMC7654321']), json(longer.left().found));
+  ok('a DOI closed by a bracket keeps its own brackets', json(ids('(see doi 10.5555/ab(12)cd.3).')) === json(['DOI 10.5555/ab(12)cd.3']) && json(ids('(doi 10.5555/ab(12))')) === json(['DOI 10.5555/ab(12)']) && json(ids('[https://arxiv.org/abs/2101.01234]')) === json(['arXiv 2101.01234']));
+  const given = F.checks({ messages: ask('Summarise PMID 33445566 for me'), sent: sent(), request: 'x' });
+  ok('one the person gave is theirs to cite', (await given.finish[2].run('PMID 33445566 reports a cohort study.')) === null);
+  const read = F.checks({ messages: searched('Is there a trial?', 'The trial is described at https://doi.org/10.5555/zz.2020.11 in full.'), sent: sent(), request: 'x' });
+  ok('one a page or a search the agent read gives is found there', (await read.finish[2].run('Yes: doi 10.5555/zz.2020.11.')) === null);
+  const mixed = F.checks({ messages: papers('x'), sent: sent(), request: 'x' });
+  const both = await mixed.finish[2].run('Call 020 7946 0321. See PMID 33445566.');
+  ok('with a detail of another kind, both are named in one note', !!both && /020 7946 0321/.test(both.message) && /PMID 33445566/.test(both.message), both && both.message);
+})();
+
 ok('it is part of npm run check', /npm run check:chat-finish\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/finish.js)`);
 process.exit(fail ? 1 : 0);

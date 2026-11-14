@@ -12,10 +12,11 @@
 //     site, when no search or page read ran, is sent back once
 //     (js/code/verify.js claimNote);
 //   · details nothing read says: an address, a phone number, an email,
-//     opening hours or a year that neither the person nor anything the
-//     agent read gives is sent back once to be found, taken out or said to
-//     be unconfirmed (js/code/facts.js), and what is still unconfirmed is
-//     said under the answer.
+//     opening hours or a year (js/code/facts.js), or a paper cited by its
+//     PMID, DOI, PMC or arXiv number, that neither the person nor anything
+//     the agent's tools returned gives is sent back once to be found, taken
+//     out or said to be unconfirmed, and what is still unconfirmed is said
+//     under the answer.
 //
 // Each reads the app's record of the run, never the agent's word for it.
 //
@@ -46,6 +47,60 @@
     return want.length <= 2 ? hits === want.length : hits >= Math.ceil(want.length * 0.6);
   }
 
+  // ── A paper cited that nothing found ─────────────────────────────────
+  //
+  // A paper named by its identifier reads as checked, and a made-up one
+  // looks exactly like a real one. A PMID, a DOI, a PMC number or an arXiv
+  // number in the answer is looked for in what the person gave and what the
+  // agent's tools returned; one found in neither is a detail nothing gave,
+  // sent back with the others. The app's own notes and the agent's earlier
+  // answers are not sources.
+  const CITE_FORMS = [
+    { re: /\bPMID\s*:?\s*#?\s*(\d{4,9})\b/gi, kind: 'pmid' },
+    { re: /pubmed\.ncbi\.nlm\.nih\.gov\/(\d{4,9})/gi, kind: 'pmid' },
+    { re: /\b(10\.\d{4,9}\/[^\s"'<>]+)/g, kind: 'doi' },
+    { re: /\bPMC\s?(\d{4,9})\b/g, kind: 'pmc' },
+    { re: /\barxiv\s*:\s*(\d{4}\.\d{4,5})/gi, kind: 'arxiv' },
+    { re: /arxiv\.org\/(?:abs|pdf)\/(\d{4}\.\d{4,5})/gi, kind: 'arxiv' },
+  ];
+  /** A DOI as written, without the punctuation of the sentence around it. */
+  const doiOf = (raw) => {
+    let d = String(raw).replace(/[.,;:]+$/, '');
+    for (const [open, close] of [['(', ')'], ['[', ']']]) while (d.endsWith(close) && d.split(close).length > d.split(open).length) d = d.slice(0, -1).replace(/[.,;:]+$/, '');
+    return d.toLowerCase();
+  };
+  const SHOWN = { pmid: (v) => `PMID ${v}`, doi: (v) => `DOI ${v}`, pmc: (v) => `PMC${v}`, arxiv: (v) => `arXiv ${v}` };
+
+  /** The papers an answer names by identifier, outside its code blocks, each once, in order. */
+  function citesIn(reply) {
+    const H = window.HCFences;
+    const prose = H && H.splitFences ? H.splitFences(String(reply || '')).filter((p) => p.type !== 'code').map((p) => p.text).join('\n') : String(reply || '');
+    const hits = [];
+    for (const f of CITE_FORMS) for (const m of prose.matchAll(f.re)) hits.push({ at: m.index, kind: f.kind, value: f.kind === 'doi' ? doiOf(m[1]) : m[1] });
+    const seen = new Set();
+    return hits.sort((a, b) => a.at - b.at).filter((h) => !seen.has(`${h.kind}:${h.value}`) && seen.add(`${h.kind}:${h.value}`))
+      .map((h) => ({ kind: h.kind, value: h.value, shown: SHOWN[h.kind](h.value) }));
+  }
+
+  /** What the person gave and the tools returned, as one text to look in: not the app's notes, not the agent's answers. */
+  function sourceText(messages) {
+    const V = window.HCCodeVerify;
+    const note = (m) => !!m.note || !!(V && V.isAppNote && V.isAppNote(m.content));
+    return (Array.isArray(messages) ? messages : [])
+      .filter((m) => m && (m.role === 'tool' || m.role === 'system' || (m.role === 'user' && !note(m))))
+      .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content || ''))).join('\n').toLowerCase();
+  }
+
+  /** The papers an answer cites that nothing the person gave or a tool returned names, as details for the list. */
+  function unreadCites(reply, messages) {
+    const cites = citesIn(reply);
+    if (!cites.length) return [];
+    const text = sourceText(messages);
+    const has = (c) => (c.kind === 'doi' || c.kind === 'arxiv' ? text.includes(c.value)
+      : new RegExp(`${c.kind === 'pmc' ? 'pmc\\s?' : '(?:^|\\D)'}${c.value}(?!\\d)`).test(text));
+    return cites.filter((c) => !has(c)).map((c) => ({ path: 'answer.md', kind: 'cite', shown: c.shown }));
+  }
+
   /**
    * The finishing checks of one chat run, as the shared loop takes them:
    * { finish, left, wrap }. `messages` the run's conversation (read as it
@@ -71,12 +126,12 @@
     const claimLook = async (reply) => (V && V.claimNote ? V.claimNote(reply, messages, s.claim || 0) : null);
 
     const factsLook = async (reply) => {
-      if (!Fa) return null;
-      const seen = Fa.check({ files: [{ path: 'answer.md', text: String(reply || '') }], messages });
-      found = seen.unsourced.length ? { unsourced: seen.unsourced } : null;   // square brackets in a chat answer are links, not unfinished text
+      const seen = Fa ? Fa.check({ files: [{ path: 'answer.md', text: String(reply || '') }], messages }) : { unsourced: [] };
+      const unsourced = [...seen.unsourced, ...unreadCites(reply, messages)];   // a paper cited that nothing found is one more
+      found = unsourced.length ? { unsourced } : null;   // square brackets in a chat answer are links, not unfinished text
       if (!found || (s.facts || 0) >= 1) return null;
       return { kind: 'facts', step: FACTS_STEP,
-        message: `${note} your answer states details that nothing the person gave or you read says: ${Fa.listOf(found.unsourced)}. Find each with your tools, take it out, or say plainly that it is not confirmed.` };
+        message: `${note} your answer states details that nothing the person gave or you read says: ${Fa ? Fa.listOf(found.unsourced) : found.unsourced.map((x) => x.shown).join(', ')}. Find each with your tools, take it out, or say plainly that it is not confirmed.` };
     };
 
     return {
@@ -94,5 +149,5 @@
     return `Not confirmed by anything you gave or the agent read: ${Fa ? Fa.listOf(found.unsourced) : found.unsourced.map((x) => x.shown).join(', ')}. Check before relying on ${found.unsourced.length === 1 ? 'it' : 'them'}.`;
   }
 
-  window.HCChatFinish = { ASKS_STEP, FACTS_STEP, covers, checks, leftLine };
+  window.HCChatFinish = { ASKS_STEP, FACTS_STEP, covers, citesIn, unreadCites, checks, leftLine };
 })();

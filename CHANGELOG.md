@@ -28,8 +28,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   it is shown: a question of several parts with parts left out, a search
   it says it made when none ran (a web, Wikipedia or PubMed search, or a
   page read, counts), Python it says ran when none did, and an address,
-  number or email nothing it read gives, are each sent back once, and
-  anything still unconfirmed is said under the answer. The other agents,
+  number or email, or a paper cited by its PMID, DOI, PMC or arXiv number,
+  that nothing it read gives, are each sent back once, and anything still
+  unconfirmed is said under the answer. The other agents,
   and every agent on a model on this computer, run as before.
 
 - **HashCoder does not start a model on a job it cannot hold.** Before a
