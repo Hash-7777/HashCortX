@@ -26,6 +26,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder names a photo address it changed while copying.** A model
+  copying a long photo address from find_photos into a file can change a
+  part of it, and the picture never loads. Writing or patching a file that
+  holds an address on the same site that find_photos did not return now
+  says which one, beside the address it most likely meant.
+
 - **HashCoder's Python run says why it cannot open a project file.**
   Python runs in a sandbox that holds none of the project's files. A run
   that could not find a file now says so in its result, and to read the

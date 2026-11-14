@@ -715,6 +715,33 @@
     return `${out}\n\n${hint}`;
   };
 
+  /**
+   * The photo addresses find_photos has returned in this window. A model
+   * copying a long address into a file often changes a part of it, and the
+   * picture then never loads; nothing about the file looks wrong. A written
+   * file is checked against them, and an address on the same site that is not
+   * one of them is named in the result, with the one it most likely meant.
+   */
+  HC.code.photosGiven = new Set();
+  HC.code.photoNote = (text) => {
+    const given = [...HC.code.photosGiven];
+    if (!given.length) return '';
+    const hostOf = (u) => { try { return new URL(u).host; } catch { return ''; } };
+    const hosts = new Set(given.map(hostOf));
+    const wrong = [...new Set(String(text || '').match(/https?:\/\/[^\s'"()<>\\]+/g) || [])].filter((u) => hosts.has(hostOf(u)) && !HC.code.photosGiven.has(u));
+    if (!wrong.length) return '';
+    const idOf = (u) => String(u).split('/').pop().split(/[_.]/)[0];
+    const named = wrong.map((u) => { const meant = given.find((g) => idOf(g) === idOf(u)); return meant ? `${u} (find_photos returned ${meant})` : u; });
+    return `${named.length === 1 ? 'This image address is' : 'These image addresses are'} not ${named.length === 1 ? 'one' : 'ones'} find_photos returned, so the picture may never load: ${named.join('; ')}. Use the addresses it returned exactly.`;
+  };
+  HC.code.withPhotoNote = (result, text) => {
+    const photos = HC.code.photoNote(text);
+    if (!photos) return result;
+    if (result && typeof result === 'object') return { ...result, photos };
+    try { const j = JSON.parse(result); if (j && typeof j === 'object') return JSON.stringify({ ...j, photos }); } catch { /* words: said after them */ }
+    return `${result}\n\n${photos}`;
+  };
+
   async function viaChatTool(name, args) {
     const run = window._H?.runOneTool;
     if (!run) return JSON.stringify({ error: `${name} is not available in this window, so nothing was done. Carry on without it, and say what could not be done.` });
@@ -863,9 +890,9 @@
         if (p.append === true && p.content != null) {
           if (!(await HC.guard.request('read', p.path, 'Reading file'))) throw await HC.code.refused('read', p.path);
           const had = await HC.invoke('fs_read_base64', { path: p.path }).then((f) => window.HCCodePatch.textOf(window.HCCodePatch.bytesFromBase64(f.base64), p.path), () => null);   // a file that is not text is refused by textOf; one that is not there yet is written new
-          if (had != null) return HC.code.writeFile(p.path, window.HCCodePatch.appended(had, p.content), p.reason || `Adding to the end of ${p.path}`);
+          if (had != null) return HC.code.withPhotoNote(await HC.code.writeFile(p.path, window.HCCodePatch.appended(had, p.content), p.reason || `Adding to the end of ${p.path}`), p.content);
         }
-        return HC.code.writeFile(p.path, p.content, p.reason, { asked: true, whole: p.replace_whole === true });
+        return HC.code.withPhotoNote(await HC.code.writeFile(p.path, p.content, p.reason, { asked: true, whole: p.replace_whole === true }), p.content);
       },
     },
     {
@@ -880,7 +907,7 @@
         reason:  'What this change does',
         then_run: HC.code.THEN_RUN,
       },
-      fn: (p) => HC.code.patchFile(p.path, p.search, p.replace, p.reason, p.edits, p.all === true),
+      fn: async (p) => HC.code.withPhotoNote(await HC.code.patchFile(p.path, p.search, p.replace, p.reason, p.edits, p.all === true), [p.replace, ...(Array.isArray(p.edits) ? p.edits.map((e) => e && e.replace) : [])].join('\n')),
     },
     {
       // A checklist the model keeps for a request with several parts (js/code/plan.js).
@@ -1187,6 +1214,7 @@
         try { ({ photos } = await P.find({ searches: [p.subject], fetch: (...a) => fetch(...a) })); } finally { job?.done(); }
         const list = photos.slice(0, Math.min(Math.max(parseInt(p.count) || 6, 1), P.MAX_PHOTOS))
           .map((x) => ({ url: x.url, title: x.title, shape: x.shape, credit: P.creditOf(x), page: x.page }));
+        list.forEach((x) => HC.code.photosGiven.add(x.url));   // what a file written later is checked against (photoNote)
         return JSON.stringify(list.length
           ? { photos: list, note: 'Real, openly licensed photographs. Use these addresses exactly. Credit each one the page shows where a visitor can read it, with its credit and a link to its page: the licence requires it.' }
           : { photos: [], note: `No openly licensed photos were found for "${String(p.subject || '').slice(0, 60)}". Try other plain words once, or: ${draw}` });

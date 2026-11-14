@@ -16,7 +16,7 @@ const ok = (label, cond, detail = '') => {
   else { fail++; console.log(`  FAIL  ${label}${detail ? ` — ${detail}` : ''}`); }
 };
 
-const sandbox = { window: {}, console, JSON, Object, Array, String, Number, Math, Promise, Error, Map, Set };
+const sandbox = { window: {}, console, JSON, Object, Array, String, Number, Math, Promise, Error, Map, Set, URL };
 sandbox.HC = sandbox.window.HC = {};
 vm.createContext(sandbox);
 vm.runInContext(src('js', 'model-profile.js'), sandbox, { filename: 'model-profile.js' });
@@ -612,6 +612,27 @@ console.log('\nWhat a Python run tells the model:');
   ok('...in words after a result that is not JSON', /holds none of the project's files/.test(HC.code.pythonHint('No such file or directory: x')));
   ok('...and a run that worked is passed on as it came', HC.code.pythonHint('{"stdout":"2\\n"}') === '{"stdout":"2\\n"}');
   ok('the Python tool hands its result through it', /fn: async \(p\) => HC\.code\.pythonHint\(await viaChatTool\('execute_python'/.test(src('platform', 'tauri', 'hashcoder.js')));
+}
+
+console.log('\nA photo address a file uses that the photo search never returned is named:');
+{
+  HC.code.photosGiven.clear();
+  ok('before any search, nothing is checked', HC.code.photoNote('<img src="https://live.example-photos.test/1/123_ab_b.jpg">') === '');
+  HC.code.photosGiven.add('https://live.example-photos.test/2457/3860586024_3d3b1942c5_b.jpg');
+  HC.code.photosGiven.add('https://live.example-photos.test/3715/12546447343_d94e941193_b.jpg');
+  const page = "img: 'https://live.example-photos.test/2457/3860586024_3d3b1942c5_b.jpg', img: 'https://live.example-photos.test/71401718@N00/12546447343_d94e941193_b.jpg', logo: 'https://other.example.test/logo.png'";
+  const note = HC.code.photoNote(page);
+  ok('an address on the photos\' site that was not returned is named, with the one it most likely meant', /^This image address is not one find_photos returned/.test(note) && note.includes('71401718@N00/12546447343_d94e941193_b.jpg (find_photos returned https://live.example-photos.test/3715/12546447343_d94e941193_b.jpg)'));
+  ok('...while one it returned, and an address on another site, are not', !note.includes('2457/3860586024') && !note.includes('other.example.test'));
+  ok('an address copied exactly says nothing', HC.code.photoNote("src='https://live.example-photos.test/2457/3860586024_3d3b1942c5_b.jpg'") === '');
+  const back = JSON.parse(HC.code.withPhotoNote(JSON.stringify({ ok: true, path: '/w/script.js', bytes: 10 }), page));
+  ok('the note goes in the write\'s own result, which is kept whole', back.ok === true && back.path === '/w/script.js' && /not one find_photos returned/.test(back.photos));
+  ok('...beside an object result as well, and a clean write is passed on as it came', /find_photos/.test(HC.code.withPhotoNote({ ok: true }, page).photos) && HC.code.withPhotoNote('{"ok":true}', 'no addresses') === '{"ok":true}');
+  const tools = src('platform', 'tauri', 'hashcoder.js');
+  ok('find_photos remembers what it returned, and write_file and patch_file check what they write', /list\.forEach\(\(x\) => HC\.code\.photosGiven\.add\(x\.url\)\);/.test(tools)
+    && (tools.match(/return HC\.code\.withPhotoNote\(await HC\.code\.writeFile\(/g) || []).length === 2
+    && /fn: async \(p\) => HC\.code\.withPhotoNote\(await HC\.code\.patchFile\(p\.path, p\.search, p\.replace, p\.reason, p\.edits, p\.all === true\), \[p\.replace, \.\.\.\(Array\.isArray\(p\.edits\)/.test(tools));
+  HC.code.photosGiven.clear();
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);
