@@ -156,6 +156,7 @@
     '/js/chat/decide.js',
     '/js/chat/diagrams.js',
     '/js/chat/finish.js',
+    '/js/chat/agent-run.js',
     '/js/model-speed.js',
     '/js/model-routes.js',
     '/js/markdown-safe.js',
