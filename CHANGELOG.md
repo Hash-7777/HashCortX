@@ -26,6 +26,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Deleting a file tells HashCoder's model it worked.** A deletion that
+  succeeded came back to the model as nothing at all. It now says the file
+  was deleted, and whether Undo can bring it back.
+
 - **HashCoder runs a program once when the model names it twice.** A
   model that gave the program again as the first of its arguments, such
   as python3 then python3 -c, ran it on a file of that name and failed.

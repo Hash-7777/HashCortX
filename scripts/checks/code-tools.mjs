@@ -590,5 +590,19 @@ console.log('\nToday\'s date, and using tools well:');
   ok('...and in light mode too', /extra, HC\?\.code\?\.dateLine\?\.\(\)\.trim\(\)\]\.filter\(Boolean\)/.test(mode));
 }
 
+console.log('\nWhat a deletion tells the model:');
+{
+  HC.guard = { request: async () => true, projectRoot: () => '/work/app' };
+  HC.code.leaveAlone = () => {};
+  const keepUndo = HC.undo;
+  HC.undo = { capture: async () => ({ path: '/work/app/old.py' }), drop: async () => {}, seal: async () => {} };
+  HC.invoke = async () => null;
+  const del = await HC.code.TOOL_DEFINITIONS.find((t) => t.name === 'delete_file').fn({ path: '/work/app/old.py' });
+  ok('a deletion that worked says so, and whether Undo can bring the file back, rather than nothing', del && del.ok === true && del.deleted === true && del.path === '/work/app/old.py' && /Undo can bring it back/.test(del.undo), JSON.stringify(del));
+  HC.undo = { capture: async () => ({ path: '/work/app/big.bin', unrestorable: 'too large' }), drop: async () => {}, seal: async () => {} };
+  ok('...and says when it cannot', /Undo cannot bring it back/.test((await HC.code.deleteFile('/work/app/big.bin')).undo));
+  HC.undo = keepUndo;
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);
 process.exit(fail ? 1 : 0);

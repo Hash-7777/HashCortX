@@ -175,7 +175,8 @@
       if (record) record.after = '';
       const out = await HC.invoke('fs_delete_file', { path });
       await HC.undo.seal(record);
-      return out;
+      // The native side answers nothing on success, which reached the model as "null".
+      return out == null ? { ok: true, path, deleted: true, undo: record && !record.unrestorable ? 'Undo can bring it back.' : 'Undo cannot bring it back.' } : out;
     },
 
     async searchFiles(dir, pattern) {
