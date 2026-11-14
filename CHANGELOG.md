@@ -13,7 +13,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Medical Lexi-Check closes every answer with a notice to check with a
   licensed pharmacist or physician.** The app adds it under the answer
   itself, so it is there whatever the model writes, and a copy made with
-  Duplicate & edit keeps it.
+  Duplicate & edit keeps it. A copy saved earlier is given it when the app
+  loads it, and the sentence its instructions held is taken out of them.
 - **Medical Lexi-Check grades only from a search.** On a cloud model, a
   pair graded when no search ran, or a card naming as its source a site
   no search returned, is sent back once to search or to mark the pair to

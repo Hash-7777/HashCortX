@@ -974,7 +974,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     try {
       const raw = localStorage.getItem("atelier_agents");
       const arr = raw ? JSON.parse(raw) : [];
-      state.agents = Array.isArray(arr) ? arr.filter(a => a && typeof a === "object") : [];
+      state.agents = Array.isArray(arr) ? arr.filter(a => a && typeof a === "object").map((a) => window.HCAgentNotice?.repair(a) || a) : [];   // a copy saved before agents carried a notice (js/chat/notice.js)
     } catch { state.agents = []; }
   }
   function saveAgents() {

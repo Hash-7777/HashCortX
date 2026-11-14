@@ -13,6 +13,9 @@
 //   · only under an answer that has something in it;
 //   · never for an agent with no notice.
 //
+// A copy of an agent saved before agents carried a notice is repaired
+// when it is loaded (repair).
+//
 // Pure but for the reply it is handed. Published as window.HCAgentNotice.
 // Checked by scripts/checks/chat-notice.mjs.
 // ==============================================================
@@ -29,5 +32,23 @@
     return true;
   }
 
-  window.HCAgentNotice = { add };
+  /** Medical Lexi-Check's notice (js/app.js), and what a copy of it is given when repaired. */
+  const PHARMACIST = 'This report is for information only. Check it with a licensed pharmacist or physician before making any medication decision.';
+  // The closing sentence a copy of that agent made before agents carried a
+  // notice still holds in its instructions, matched by its shape: the model
+  // was told to write it, and an answer repeating its instructions loses it.
+  const OLD_CLOSING = /^[ \t]*\*This report is for informational purposes only\. Verify with a licensed pharmacist or physician and [^\n*]{1,80} before making any medication decisions\.\*[ \t]*$/m;
+
+  /**
+   * A saved agent as it should run: a copy whose instructions still ask the
+   * model for that sentence has it taken out and is given the notice
+   * instead. Anything else is returned as it is.
+   */
+  function repair(agent) {
+    if (!agent || agent.builtin || typeof agent.systemPrompt !== 'string' || !OLD_CLOSING.test(agent.systemPrompt)) return agent;
+    const systemPrompt = agent.systemPrompt.replace(OLD_CLOSING, '').replace(/\n{3,}/g, '\n\n').trim();
+    return { ...agent, systemPrompt, notice: agent.notice || PHARMACIST };
+  }
+
+  window.HCAgentNotice = { PHARMACIST, add, repair };
 })();

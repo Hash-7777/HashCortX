@@ -45,6 +45,30 @@ console.log('\nAdded under the answer, by the app:');
   ok('nothing to add to is no error', add(agent, null) === false);
 }
 
+console.log('\nA copy saved before agents carried a notice:');
+{
+  const OLD = '*This report is for informational purposes only. Verify with a licensed pharmacist or physician and the usual references before making any medication decisions.*';
+  const prompt = `You are a drug check.\n\n**Sources consulted:** [list]\n\n${OLD}`;
+  const copy = { id: 'agent_x', builtin: false, name: 'Drug check (copy)', systemPrompt: prompt, tools: ['web_search'] };
+  const fixed = typeof N.repair === 'function' ? N.repair(copy) : null;
+  ok('its closing sentence leaves its instructions, so nothing strips it from an answer', !!fixed && !/for informational purposes only/.test(fixed.systemPrompt) && /\*\*Sources consulted:\*\* \[list\]$/.test(fixed.systemPrompt), fixed && JSON.stringify(fixed.systemPrompt));
+  ok('...and it is given the pharmacist notice instead', !!fixed && fixed.notice === N.PHARMACIST && /licensed pharmacist or physician/.test(N.PHARMACIST || ''));
+  ok('...keeping everything else it holds', !!fixed && fixed.id === 'agent_x' && fixed.name === copy.name && JSON.stringify(fixed.tools) === '["web_search"]' && copy.systemPrompt === prompt);
+  ok('repairing it again changes nothing', !!fixed && JSON.stringify(N.repair(fixed)) === JSON.stringify(fixed));
+  const own = { id: 'agent_y', builtin: false, systemPrompt: 'You check drugs.', notice: 'My own words.' };
+  ok('an agent without that sentence is left as it is, notice and all', N.repair?.(own) === own);
+  const edited = { id: 'agent_z', builtin: false, systemPrompt: `${prompt}\nAlso check dosages.` };
+  ok('a sentence the person reworded is left to them', N.repair?.({ id: 'agent_w', systemPrompt: prompt.replace('informational', 'general') })?.notice === undefined);
+  const more = N.repair?.(edited);
+  ok('...but one still there word for word, with a line added after it, is repaired and the line kept', !!more && more.notice === N.PHARMACIST && /Also check dosages\.$/.test(more.systemPrompt) && !/for informational purposes only/.test(more.systemPrompt), more && JSON.stringify(more.systemPrompt));
+  ok('a copy that already has a notice of its own keeps it', N.repair?.({ ...copy, notice: 'My own words.' })?.notice === 'My own words.');
+  ok('a sentence much longer in the middle than the old one is not taken for it', N.repair?.({ id: 'agent_v', systemPrompt: OLD.replace('the usual references', 'x'.repeat(200)) })?.notice === undefined);
+  ok('a built-in agent, or nothing, is left as it is', N.repair?.({ builtin: true, systemPrompt: prompt })?.notice === undefined && N.repair?.(null) === null);
+  const app = src('js', 'app.js');
+  ok('the chat repairs the agents it loads', /arr\.filter\(a => a && typeof a === "object"\)\.map\(\(a\) => window\.HCAgentNotice\?\.repair\(a\) \|\| a\)/.test(app));
+  ok('the sentence is matched by its shape: no product is named in the code', !/lexicomp|drugs\.com/i.test(src('js', 'chat', 'notice.js')));
+}
+
 console.log('\nMedical Lexi-Check (app.js):');
 {
   const app = src('js', 'app.js');
@@ -53,6 +77,7 @@ console.log('\nMedical Lexi-Check (app.js):');
   const notice = (/notice: "([^"]+)"/.exec(def) || [])[1] || '';
   ok('its definition carries a notice telling the person to check with a pharmacist or physician', /licensed pharmacist or physician/.test(notice), notice);
   ok('...which names no product', !!notice && !/lexicomp|drugs\.com/i.test(notice), notice);
+  ok('...and is the module\'s, word for word, so a repaired copy gets the same', !!notice && notice === N.PHARMACIST);
   const prompt = (/systemPrompt: `([\s\S]*?)`/.exec(def) || [])[1] || '';
   ok('its instructions no longer ask the model to write it', prompt.length > 500 && !/for informational purposes only/i.test(prompt) && !prompt.includes(notice) && /CRITICAL ALERTS/.test(prompt), String(prompt.length));
   ok('a duplicated built-in agent keeps its notice', /systemPrompt: source\.systemPrompt, tools: \[\.\.\.\(source\.tools \|\| \[\]\)\], \.\.\.\(source\.notice \? \{ notice: source\.notice \} : \{\}\)/.test(app));
