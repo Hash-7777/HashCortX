@@ -63,5 +63,14 @@ console.log('\nThe chat uses it:');
   ok('it loads before the chat', src('boot.js').indexOf("'/js/chat/thought.js'") < src('boot.js').indexOf("'/js/app.js'"));
 }
 
+console.log('\nThe folded line is quiet, and the rule belongs to the thinking itself:');
+{
+  const css = readFileSync(new URL('../../src/css/main.css', import.meta.url), 'utf8');
+  const rule = (sel) => (new RegExp('\\n\\s*' + sel.replace(/[.\[\]:()]/g, (c) => '\\' + c) + ' \\{([^}]*)\\}').exec(css) || [])[1];
+  ok('the folded line carries no rule beside it', rule('.thought') !== undefined && !/border/.test(rule('.thought')));
+  ok('...the opened thinking does', /border-left: 2px solid var\(--line\)/.test(rule('.thought-text') || ''));
+  ok('its mark is drawn, not the typed triangle, and turns as it opens', /display: none/.test(rule('.thought summary::-webkit-details-marker') || '') && /list-style: none/.test(rule('.thought summary') || '') && /border-right: 1\.5px solid currentColor/.test(rule('.thought summary::before') || '') && /rotate\(45deg\)/.test(rule('.thought[open] summary::before') || ''));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/thought.js)`);
 process.exit(fail ? 1 : 0);

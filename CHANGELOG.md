@@ -26,6 +26,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The folded Thought line above a reply is a quiet line with a drawn
+  chevron.** A rule stood beside the word Thought even when it was
+  folded, and its mark was a typed triangle. The rule now sits beside the
+  thinking once it is opened, and the mark is drawn and turns as it opens.
+
 - **An ask a HashCoder run worked on but did not finish says so once the
   run ends.** The request card kept saying "in work" after the run had
   stopped, for instance to ask a question. Once the run has ended such an
