@@ -43,6 +43,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   Sandbox, Finance, the ERP, the Agent Swarm and 3D Forge leave it out of
   their menus and their lists of models to move to.
 
+### Changed
+
+- **HashCoder's top bar says what each tool is.** Debug, Terminal and
+  Settings each carry a drawn mark and its word, together in one group;
+  the debug report is drawn as a bug rather than the download arrow, New
+  chat as a speech mark with a plus and Sessions as a clock turning back.
+  On a narrow window the words fold away and the marks keep their names.
+
 ### Fixed
 
 - **While a picture is made, the reply says so in plain words.** It named

@@ -128,6 +128,12 @@ body.coder-mode #app { display: none; }
 .cdr-sessions-btn:hover { border-color: var(--cdr-border-strong); }
 .cdr-sessions-btn[aria-expanded="true"] { color: var(--cdr-text); border-color: var(--cdr-border-strong); }
 .cdr-new-btn:hover { color: var(--cdr-text); border-color: var(--accent); }
+.cdr-new-btn svg, .cdr-tool-btn svg { stroke-width: 1.6; }
+/* The bar's tools: a drawn mark and its word, together in one quiet group so they read as a set. */
+.cdr-tools { display: inline-flex; align-items: center; gap: 2px; padding: 1px; border: 1px solid var(--cdr-border); border-radius: calc(var(--radius-sm) + 2px); }
+.cdr-tool-btn { width: auto; height: 26px; display: inline-flex; gap: 6px; padding: 0 9px 0 7px; font-size: 12px; white-space: nowrap; }
+.cdr-tool-btn svg { width: 15px; height: 15px; }
+.cdr-tool-btn[aria-expanded="true"] { color: var(--cdr-text); background: var(--surface-raised); }
 .cdr-icon-btn:focus-visible, .cdr-project:focus-visible, .cdr-text-btn:focus-visible, .cdr-new-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .cdr-text-btn {
@@ -793,6 +799,10 @@ body.coder-mode #app { display: none; }
 #coder-mode-wrap ::-webkit-scrollbar-thumb { background: var(--cdr-border-strong); border-radius: 999px; }
 #coder-mode-wrap ::-webkit-scrollbar-track { background: transparent; }
 
+@media (max-width: 1240px) {
+  .cdr-tool-word { display: none; }
+  .cdr-tool-btn { width: 30px; padding: 0; justify-content: center; }
+}
 @media (max-width: 1100px) {
   .cdr-router-chip, .cdr-ctx { display: none; }
   .cdr-model-picker { max-width: 150px; }

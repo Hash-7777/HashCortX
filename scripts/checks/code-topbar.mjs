@@ -44,5 +44,13 @@ ok('a launch keeps the last conversation in Sessions and starts a new one, with 
 ok('going out of HashCoder and back in does not restore anything: the second mount returns before it', /if \(setUp\) \{ syncTerminalPrompt\(\); updateCoderStatus\(\); return; \}/.test(mode) && mode.indexOf('if (setUp) {') < mode.indexOf('restoreCoderState();'));
 ok('the sessions button is quiet until it is the open one, like New chat in the same bar', /\.cdr-sessions-btn \{ border-color: transparent; \}/.test(css) && /\.cdr-sessions-btn\[aria-expanded="true"\]/.test(css));
 
+console.log('\nThe tools: a drawn mark and its word each, in one group:');
+const group = (/<div class="cdr-tools" role="group" aria-label="Tools">([\s\S]*?)<\/div>/.exec(panel) || [])[1] || '';
+for (const [id, word] of [['cdrDebugBtn', 'Debug'], ['cdrTerminalBtn', 'Terminal'], ['cdrSettingsBtn', 'Settings']]) {
+  ok(`${word}: in the group, with a drawn mark, its word and a name a screen reader says`, new RegExp(`id="${id}"[^>]*aria-label="[^"]+"[^>]*>\\s*<svg[^>]*>[\\s\\S]*?<\/svg>\\s*<span class="cdr-tool-word">${word}<\/span>`).test(group));
+}
+ok('the debug report is drawn as a bug, not the download arrow it shared with saving a file', /id="cdrDebugBtn"[^>]*>\s*<svg[^>]*><path d="M9\.5 6\.6a2\.5 2\.5 0 0 1 5 0"\/><rect x="7\.5" y="7\.5" width="9" height="12" rx="4\.5"\/>/.test(group) && !/M12 4v10M8 10\.5l4 4 4-4/.test(group));
+ok('on a narrow window the words fold away and the marks stay', /@media \(max-width: 1240px\) \{\s*\.cdr-tool-word \{ display: none; \}/.test(css));
+
 console.log(`\n${pass} passed, ${fail} failed  (HashCoder's top bar)`);
 process.exit(fail ? 1 : 0);

@@ -203,7 +203,7 @@ console.log('\nIt is in the panel:');
 {
   const html = src('modes', 'code', 'panel.html');
   const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
-  ok('a button in the top bar, with words for what it does', /<button type="button" class="cdr-icon-btn" id="cdrDebugBtn" title="Export this conversation with its trace, for debugging">/.test(html));
+  ok('a button in the top bar, with words for what it does', /<button type="button" class="cdr-icon-btn cdr-tool-btn" id="cdrDebugBtn" title="Export this conversation with its trace, for debugging" aria-label="Debug report">\s*<svg[^>]*>[\s\S]*?<\/svg>\s*<span class="cdr-tool-word">Debug<\/span>/.test(html));
   ok('it is wired to the export, with the whole conversation and the trace', /\$\('cdrDebugBtn'\)\?\.addEventListener\('click', exportDebug\)/.test(mode) && /exportDebug = \(\) => window\.HCCodeDebug\.exportRun\(\{ messages: conversationMsgs, trace: cdrTraceEntries,/.test(mode));
   ok('and saves through the same door the other exports use', /save: \(t, m, n\) => downloadBlob\(t, m, n,/.test(mode) && /window\.HC\.save\.file\(filename, content/.test(mode));
   ok('the export in Settings is still there', /id="cdrExportBtn"/.test(src('core', 'settings', 'panel.html')));
