@@ -20,8 +20,9 @@
 //     a run that ends at its limit with nothing said is asked once, with no
 //     tools, for its answer.
 //
-// Agents move onto it one at a time (ON_LOOP), on a cloud model; a model on
-// this computer keeps its own way of taking steps (js/chat/decide.js).
+// The built-in agents moved onto it one at a time (ON_LOOP), and every agent a
+// person made runs on it too, on a cloud model; a model on this computer keeps
+// its own way of taking steps (js/chat/decide.js).
 //
 // Pure but for what it is handed. Published as window.HCChatAgentRun.
 // Checked by scripts/checks/chat-agent-run.mjs.
@@ -32,13 +33,15 @@
   /** The agents that run on the shared loop, moved one at a time. */
   const ON_LOOP = ['builtin_url_reader', 'builtin_researcher', 'builtin_papers', 'builtin_deep_research', 'builtin_hash_ai', 'builtin_coder', 'builtin_medical_lexi', 'builtin_ats_auditor'];
   const RAN_STEP = 'Sent back: Python it says ran, and none ran';
-  /** The agents that may answer from what they know: their details are held to a source only once they have searched (js/chat/finish.js). */
+  /** The agents that may answer from what they know, with every agent a person made: their details are held to a source only once they have searched (js/chat/finish.js). */
   const FROM_KNOWLEDGE = ['builtin_hash_ai', 'builtin_coder'];
   /** The agents that grade, each grade held to a search and each source to what one returned (js/chat/finish.js). */
   const GRADED = ['builtin_medical_lexi'];
 
-  /** Whether this agent, on this model, runs on the shared loop. */
-  const onLoop = (agent, model) => !!agent && ON_LOOP.includes(agent.id) && !agent.lite && /^cloud:/.test(String(model || ''));
+  /** An agent a person made: not marked built in, and not named as the built-in agents are. */
+  const madeByPerson = (agent) => !!agent && !agent.builtin && !/^builtin_/.test(String(agent.id || ''));
+  /** Whether this agent, on this model, runs on the shared loop: a built-in agent moved to it, or one a person made. */
+  const onLoop = (agent, model) => !!agent && (ON_LOOP.includes(agent.id) || madeByPerson(agent)) && !agent.lite && /^cloud:/.test(String(model || ''));
 
   const nameOf = (t) => (t && t.function ? t.function.name : t && t.name);
   const parse = (text) => { try { return JSON.parse(text); } catch { return null; } };
@@ -84,7 +87,7 @@
       error: (e) => d.record(d.assistant, 'error', String((e && e.message) || e)),
     };
     const checks = ({ sent }) => {
-      const c = F.checks({ messages, sent, request: scope.request, knowledge: FROM_KNOWLEDGE.includes(d.agent && d.agent.id), graded: GRADED.includes(d.agent && d.agent.id) });
+      const c = F.checks({ messages, sent, request: scope.request, knowledge: FROM_KNOWLEDGE.includes(d.agent && d.agent.id) || madeByPerson(d.agent), graded: GRADED.includes(d.agent && d.agent.id) });
       // Python the answer says ran, when none ran: sent back once to run it with the tool.
       const ran = { id: 'ran', words: true, run: async (reply) => {
         if (!python || sent.said || !S || !S.extractPythonFence || !S.claimsItRan) return null;
