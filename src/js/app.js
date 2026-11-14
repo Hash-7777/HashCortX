@@ -4515,7 +4515,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         recordAgentEvent(assistant, "error", err?.message || String(err || "Agent failed"));
         if (err.name !== "AbortError") showError(err);
       }
-      window.HCAgentNotice?.add(activeAgent, assistant); finishAgentRun(assistant);   // an agent's notice under its answer, by the app (js/chat/notice.js)
+      window.HCChatTrim?.tell(assistant); window.HCAgentNotice?.add(activeAgent, assistant); finishAgentRun(assistant);   // an agent's notice under its answer, by the app (js/chat/notice.js)
       flushPendingBubbleUpdate();
     } else {
       // ── Plain chat (no agent selected) ────────────────────────────────
@@ -5893,7 +5893,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // An agent moved onto the shared loop runs there, the conversation sized to its model (js/chat/agent-run.js); the rest keep the fixed trim below.
     if (window.HCChatAgentRun?.onLoop(agent, modelEl.value)) return window.HCChatAgentRun.run({ agent, assistant, messages: baseMessages, tools, tracker, temperature, signal, onStatus, onFinalToken, model: modelEl.value, request: userText, queue: chatQueue, added: (text) => { window.HCChatAgentRun.placeAdded(state.messages, assistant, text); render(); }, call: (m, t, temp, s) => turns.turn({ messages: m, tools: t, temperature: temp, signal: s }), runTool: runOneTool, record: recordAgentEvent, typewriter: typewriterIntoBubble, fallback: () => runAgentFallback({ agent, assistant, signal, onStatus, onFinalToken }), closing: AGENT_CLOSING_TURN });
     // Fitted to its model's window, room left for its steps and answer, the model told what it cannot see (js/chat/trim.js); an agent on the shared loop returned above.
-    window.HCChatTrim.fit(baseMessages, { window: modelEl.value.startsWith("cloud:") ? window.HCModelLimits?.forContext?.(modelEl.value)?.window : Math.min((await HCLocalContext.infoOf(safeHost(), modelEl.value)).max, HCLocalContext.CEILING), tokensOf: HCLocalContext.tokensOf, tools: tools.length > 0 });
+    assistant.leftOut = window.HCChatTrim.fit(baseMessages, { window: modelEl.value.startsWith("cloud:") ? window.HCModelLimits?.forContext?.(modelEl.value)?.window : Math.min((await HCLocalContext.infoOf(safeHost(), modelEl.value)).max, HCLocalContext.CEILING), tokensOf: HCLocalContext.tokensOf, tools: tools.length > 0 }).dropped;
 
     if (localSteps) return runLocalAgentSteps({ assistant, messages: baseMessages, context: memBlock, tools, tracker, temperature, signal, onStatus, onFinalToken });
 

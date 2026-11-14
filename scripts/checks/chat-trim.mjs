@@ -96,11 +96,27 @@ console.log('\nFitted, oldest first:');
   } else ok('fit() exists', false);
 }
 
+console.log('\nThe person is told, under the answer:');
+{
+  const tell = (a) => (typeof T.tell === 'function' ? T.tell(a) : null);
+  const one = { content: 'The first ferry leaves early.', leftOut: 1 };
+  ok('one message left out is said under the answer, in italics, apart from it', tell(one) === true && one.content === 'The first ferry leaves early.\n\n*This model could not see one earlier message of this conversation, to fit its window; an answer about it may be missing what it said.*', JSON.stringify(one.content));
+  ok('...once', tell(one) === false && one.content.split('could not see').length === 2);
+  const three = { content: 'Answer.', leftOut: 3 };
+  tell(three);
+  ok('several are said as several', /could not see 3 earlier messages of this conversation, to fit its window; an answer about them may be missing what they said\./.test(three.content), three.content);
+  const none = { content: 'Answer.', leftOut: 0 }, unset = { content: 'Answer.' }, empty = { content: '  ', leftOut: 2 };
+  ok('nothing is said when nothing was left out, or there is no answer to say it under', tell(none) === false && tell(unset) === false && tell(empty) === false && none.content === 'Answer.' && unset.content === 'Answer.' && empty.content === '  ');
+  ok('nothing to tell is no error', tell(null) === false);
+}
+
 console.log('\nThe chat (app.js):');
 {
   const app = src('js', 'app.js');
   ok('the fixed trim is gone', !/trimBaseToContextBudget/.test(app) && !/const BUDGET = 8000;/.test(app));
-  ok('an agent not on the shared loop is fitted to its model\'s window: this computer\'s model by what it says of itself, up to the ceiling', /window\.HCChatTrim\.fit\(baseMessages, \{ window: modelEl\.value\.startsWith\("cloud:"\) \? window\.HCModelLimits\?\.forContext\?\.\(modelEl\.value\)\?\.window : Math\.min\(\(await HCLocalContext\.infoOf\(safeHost\(\), modelEl\.value\)\)\.max, HCLocalContext\.CEILING\), tokensOf: HCLocalContext\.tokensOf, tools: tools\.length > 0 \}\);/.test(app));
+  ok('an agent not on the shared loop is fitted to its model\'s window: this computer\'s model by what it says of itself, up to the ceiling', /window\.HCChatTrim\.fit\(baseMessages, \{ window: modelEl\.value\.startsWith\("cloud:"\) \? window\.HCModelLimits\?\.forContext\?\.\(modelEl\.value\)\?\.window : Math\.min\(\(await HCLocalContext\.infoOf\(safeHost\(\), modelEl\.value\)\)\.max, HCLocalContext\.CEILING\), tokensOf: HCLocalContext\.tokensOf, tools: tools\.length > 0 \}\)\.dropped;/.test(app));
+  ok('the reply keeps how many were left out', /assistant\.leftOut = window\.HCChatTrim\.fit\(baseMessages, /.test(app));
+  ok('...and it is said under the answer, before the agent\'s notice', /window\.HCChatTrim\?\.tell\(assistant\); window\.HCAgentNotice\?\.add\(activeAgent, assistant\); finishAgentRun\(assistant\);/.test(app));
   ok('...before its steps are taken', app.indexOf('window.HCChatTrim.fit(baseMessages') > 0 && app.indexOf('window.HCChatTrim.fit(baseMessages') < app.indexOf('if (localSteps) return runLocalAgentSteps('));
   const boot = src('boot.js');
   ok('trim.js is loaded after what it counts with, and before app.js', boot.indexOf('/js/chat/trim.js') > boot.indexOf('/js/local-context.js') && boot.indexOf('/js/chat/trim.js') > boot.indexOf('/js/model-limits.js') && boot.indexOf('/js/chat/trim.js') < boot.indexOf('/js/app.js'));

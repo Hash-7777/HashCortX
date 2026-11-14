@@ -112,7 +112,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   is not sent more than it can read, and one with a large window keeps
   more of what was said. The oldest messages go first, the instructions
   and the latest exchanges are kept, and the model is told how many
-  earlier messages it cannot see.
+  earlier messages it cannot see. So are you, in a line under that answer,
+  since a small model may answer about them anyway.
 
 - **An answer that says it ran its Python, when it did not, is caught on
   more wordings.** "I ran it", "we have executed the code", and, for code

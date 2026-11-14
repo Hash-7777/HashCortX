@@ -15,7 +15,9 @@
 //     exchanges are always kept, and a request that still does not fit is
 //     refused in words where it is sent (js/local-context.js);
 //   · the model is told, in its instructions, how many earlier messages it
-//     cannot see, so it does not answer as if it had read them.
+//     cannot see, so it does not answer as if it had read them; a small
+//     model may answer about them anyway, so the person is told too, under
+//     the answer (tell).
 //
 // Published as window.HCChatTrim. Checked by scripts/checks/chat-trim.mjs.
 // ==============================================================
@@ -63,5 +65,21 @@
     return { budget, dropped };
   }
 
-  window.HCChatTrim = { UNKNOWN, KEEP_LAST, ANSWER_ROOM, budgetFor, fit };
+  /**
+   * Say under `assistant`'s answer how many earlier messages its model could
+   * not see (`leftOut`, kept from fit), once, in italics. A small model may
+   * answer about them anyway; the person is told. True when it was said.
+   */
+  function tell(assistant) {
+    const n = assistant && Number(assistant.leftOut);
+    const content = String((assistant && assistant.content) || '');
+    if (!(n > 0) || !content.trim() || content.includes('could not see')) return false;
+    const line = n === 1
+      ? 'This model could not see one earlier message of this conversation, to fit its window; an answer about it may be missing what it said.'
+      : `This model could not see ${n} earlier messages of this conversation, to fit its window; an answer about them may be missing what they said.`;
+    assistant.content = `${content.trimEnd()}\n\n*${line}*`;
+    return true;
+  }
+
+  window.HCChatTrim = { UNKNOWN, KEEP_LAST, ANSWER_ROOM, budgetFor, fit, tell };
 })();
