@@ -1792,27 +1792,35 @@ body.intro-exiting #intro-screen .logo-glow {
 .hc-perm-bar-inner {
   display: flex; align-items: center; gap: 14px;
   max-width: 1180px; margin: 0 auto;
+  /* The question keeps room to be read: when the buttons would leave it
+     narrower than 460px, they move to a row of their own, right-aligned. */
+  flex-wrap: wrap; justify-content: flex-end;
 }
-.hc-perm-text { flex: 1; min-width: 0; }
+.hc-perm-text { flex: 1 1 460px; min-width: 0; }
 /* One sentence: "Allow HashCortX to write index.html", the action in the
    accent (in the danger colour for a command or a deletion), the target in
    the code face. Words, not a pill. */
-.hc-perm-line { display: flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 13px; }
+.hc-perm-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; font-size: 13px; }
 .hc-perm-title { color: var(--text-dim); flex: 0 0 auto; }
 .hc-perm-badge { flex: 0 0 auto; color: var(--accent); font-weight: 600; text-transform: lowercase; }
 .hc-perm-badge.shell, .hc-perm-badge.delete, .hc-perm-badge.erp-change { color: var(--danger); }
 .hc-perm-target {
-  flex: 1 1 auto; min-width: 0;
+  flex: 1 1 0; min-width: 0;   /* the rest of the line, never pushed to a new one: a long path loses its middle (guard.js) */
   font-family: var(--mono);
   font-size: 12px; color: var(--text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* A reason kept on its lines: why it asks, then the address decoded (guard.js showDialog). */
 .hc-perm-reason.whole { white-space: pre-wrap; overflow-wrap: anywhere; text-overflow: clip; }
-/* A command shown whole: it wraps, keeps to six lines, then scrolls (guard.js showDialog). */
+/* A command shown whole, on a line of its own under the question, the
+   width of the text: it wraps at its spaces first, keeps to six lines, then
+   scrolls (guard.js showDialog). */
 .hc-perm-target.whole {
+  flex: 1 0 100%;
   white-space: pre-wrap; overflow-wrap: anywhere; text-overflow: clip;
   line-height: 1.45; max-height: calc(6 * 1.45em); overflow-y: auto;
+  margin-top: 2px; padding: 6px 9px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm);
 }
 .hc-perm-reason {
   margin: 4px 0 0;
@@ -1827,7 +1835,7 @@ body.intro-exiting #intro-screen .logo-glow {
   max-height: 180px; overflow: auto; margin-top: 6px;
 }
 /* Flat buttons: two quiet ones on a hairline, and Allow once filled. */
-.hc-perm-actions { flex: 0 0 auto; display: flex; gap: 8px; }
+.hc-perm-actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .hc-perm-btn {
   padding: 7px 14px;
   background: transparent; border: 1px solid var(--line-strong); border-radius: var(--radius-sm);

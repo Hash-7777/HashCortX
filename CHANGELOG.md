@@ -26,6 +26,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A command in the permission question is shown whole, the width of
+  the window.** With four buttons beside it, the command was squeezed into
+  a narrow column and broken in the middle of its words. It now has a line
+  of its own under the question, and the buttons move to a row of their
+  own before the question is squeezed. A short question still keeps to
+  one line.
+
 - **A long model name in the title bar stops before the version.** The
   name of the model answering could run under the version beside the
   app's name in a narrower window. It is now cut with an ellipsis a clear

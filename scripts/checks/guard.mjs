@@ -868,6 +868,10 @@ console.log('\nThe whole command, never a cut middle:');
   const css = readFileSync(join(dirname(guardPath), '..', '..', 'css', 'modals.css'), 'utf8');
   const rule = (/\.hc-perm-target\.whole\s*\{([^}]*)\}/.exec(css) || [])[1] || '';
   assert('...and the block wraps, keeps to six lines, then scrolls', /white-space:\s*pre-wrap/.test(rule) && /overflow-y:\s*auto/.test(rule) && /max-height:\s*calc\(6 \* /.test(rule), rule);
+  const ruleOf = (sel) => (new RegExp(sel.replace(/[.]/g, '\\.') + '\\s*\\{([^}]*)\\}').exec(css) || [])[1] || '';
+  assert('...on a line of its own under the question, the width of the text, never a narrow column beside it', /flex:\s*1 0 100%/.test(rule) && /flex-wrap:\s*wrap/.test(ruleOf('.hc-perm-line')));
+  assert('a short question keeps to one line, its target taking the rest of it rather than moving to the next', /flex:\s*1 1 0;/.test(ruleOf('.hc-perm-target')));
+  assert('the question keeps room to be read: the buttons move to a row of their own before it is squeezed', /flex-wrap:\s*wrap/.test(ruleOf('.hc-perm-bar-inner')) && /flex:\s*1 1 460px/.test(ruleOf('.hc-perm-text')) && /flex-wrap:\s*wrap/.test(ruleOf('.hc-perm-actions')));
   const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
   assert('the model is told why a long command was refused', /HC\.guard\.whyRefused\?\.\(action, target\)/.test(tools) && /longer than 2,000 characters/.test(src));
 }
