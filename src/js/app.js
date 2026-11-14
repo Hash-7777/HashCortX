@@ -1234,7 +1234,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
           const newTitle = input.value.trim() || chat.title || "Untitled";
           const chatList = activeChatList();
           const c = chatList.find(x => x.id === chat.id);
-          if (c) { c.title = newTitle; saveActiveChatList(); }
+          if (c) { if (newTitle !== c.title) c.titleBy = "person"; c.title = newTitle; saveActiveChatList(); }
           if (state.currentChatId === chat.id) setActiveTitle(newTitle);
           renderChatList();
         }
@@ -4397,7 +4397,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     function finishRename() {
       activeTitle.contentEditable = "false";
       const newTitle = activeTitle.textContent.trim() || prev;
-      chat.title = newTitle;
+      if (newTitle !== prev) chat.titleBy = "person"; chat.title = newTitle;   // a title the person gave is never replaced by the model's
       saveActiveChatList();
       setActiveTitle(newTitle);
       renderChatList();
@@ -4568,7 +4568,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     render();
     persistCurrentChat();
     const current = activeChatList().find(c => c.id === state.currentChatId);
-    if (current) setActiveTitle(current.title);
+    if (current) { setActiveTitle(current.title); window.HCChatTitle?.after({ id: current.id, messages: state.messages, model: modelEl.value, ask: runModelTurn, list: activeChatList, save: () => { saveActiveChatList(); renderChatList(); }, show: (id, t) => { if (state.currentChatId === id) setActiveTitle(t); } }); }   // its model names it once, after its first answer (js/chat/title.js)
   }
 
   async function regenerateFromAssistant(idx) {

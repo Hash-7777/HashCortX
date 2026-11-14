@@ -117,6 +117,8 @@
    * appears in is narrow, so a long title is cut on purpose rather than by
    * the column.
    */
+  /** A message's own words: after a starter prompt's "My question:", or all of it. */
+  const ownWords = (text) => String(text || "").trim().split(/\n\s*(?:My question|The problem|Here it is):[ \t]*\n/i).pop().trim();
   const ASKING = /^(?:(?:hi|hey|hello|ok|okay|so)[,!.]\s*|please\s+|(?:can|could|would|will) you\s+(?:please\s+)?|i(?: would like| want| need)(?: you)? to\s+|help me(?: to)?\s+|tell me(?: about)?\s+|explain\s+|what(?:'s| does| do| is| are| was| were)\s+|how (?:do|can|should) i\s+|how to\s+)/i;
   const TITLE_WORDS = 5;
   function deriveTitle(messages) {
@@ -127,7 +129,7 @@
     // each time, so every one was titled "Look this up…"; its title is the
     // person's own words, after the prompt's "My question:".
     const text = String(first.content).trim();
-    const own = text.split(/\n\s*(?:My question|The problem|Here it is):[ \t]*\n/i).pop().trim();
+    const own = ownWords(text);
     // A link is its site: the rest of an address says nothing to a reader.
     const plain = (own || text).replace(/https?:\/\/(?:www\.)?([^\s/?#]+)\S*/gi, "$1").replace(/\s+/g, " ").trim();
     let subject = plain;
@@ -148,5 +150,5 @@
   // cannot do here, and what the person can turn on that can.
   const PLAIN_CHAT_RULE = 'This conversation has no tools: you cannot search the web or run code in it, and a web page reaches you only when the person links it and it could be read. Never say you are searching, browsing or running anything, and never give a result you did not receive. When asked to search, or for anything current, say that this chat cannot look it up, and that the "Look it up" button turns on an agent that can.';
 
-  window.HCChatContext = { buildAttachedFileContext, estimatePromptTokens, deriveTitle, MIN_PER_FILE, PLAIN_CHAT_RULE };
+  window.HCChatContext = { buildAttachedFileContext, estimatePromptTokens, deriveTitle, ownWords, MIN_PER_FILE, PLAIN_CHAT_RULE };
 })();

@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A chat is named by the model it talks to.** Once the first answer is
+  in, the same model is asked once, with no tools, for a title of a few
+  words, shown from the start of the conversation it already has. What
+  comes back is kept only when it is a title: a sentence, a refusal or an
+  empty reply leaves the title taken from the first message. A title you
+  give a chat, in its header or in the list, is never replaced, even one
+  given while the model is still writing. The request counts toward the
+  provider's usage like any other.
+
 - **URL Reader runs on HashCoder's agent loop when it uses a cloud
   model.** The first of the chat's agents to move. The conversation it is
   shown is sized to the model rather than cut to a fixed size, older

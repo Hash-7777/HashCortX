@@ -144,6 +144,7 @@
     '/js/stream/sse.js',
     '/js/stream/first-sign.js',
     '/js/chat/context.js',
+    '/js/chat/title.js',
     '/js/chat/versions.js',
     '/js/chat/failover.js',
     '/js/chat/web-search.js',
