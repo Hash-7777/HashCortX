@@ -270,7 +270,7 @@ const SwarmMaker = (() => {
   // It orders by strength and by why the last one failed; this used to take
   // the FIRST model of each other provider in menu order, whatever it was.
   const menuModels = () => Array.from(document.getElementById("model")?.options || [])
-    .filter(o => o.value && !o.disabled)
+    .filter(o => o.value && !o.disabled && !o.dataset.pictures)
     .map(o => ({ value: o.value, label: o.textContent || o.value }));
 
   // Extract any useful partial progress from message history before switching models.
@@ -1321,7 +1321,7 @@ const SwarmMaker = (() => {
     // Build one strong representative model per provider for God Agent to assign.
     // For big assignments, choose frontier/famous/larger models instead of the first dropdown option.
     const bigTask = isBigAssignment(desc);
-    const allOpts = window.HCModelRoutes.notCooling(Array.from(document.getElementById("model")?.options || [])
+    const allOpts = window.HCModelRoutes.notCooling(Array.from(document.getElementById("model")?.options || []).filter(o => !o.dataset.pictures)
       .map(o => ({ value: o.value, label: o.textContent || o.label || o.value }))
       // A model a provider has said is gone is not offered to a new team, nor
       // one on the other side of the model it is designed on: a cloud team
@@ -2099,7 +2099,7 @@ ${modelListStr}`;
     // Mirror main model dropdown into the God Agent model select.
     const src = document.getElementById("model");
     const godDst = document.getElementById("amkGodModelSelect");
-    if (src && godDst) { godDst.innerHTML = src.innerHTML; godDst.value = src.value; }
+    if (src && godDst) { godDst.innerHTML = src.innerHTML; godDst.querySelectorAll("option[data-pictures]").forEach(o => o.remove()); godDst.value = src.value; }
     // The task typed in the bar is the goal, not a blank box asking again, and follows the bar unless the goal was written here.
     const goal = document.getElementById("amkGodTextarea"), typed = (document.getElementById("amkTaskInput")?.value || "").trim();
     if (goal && typed && (!goal.value.trim() || goal.value === goal.dataset.fromTask)) goal.value = goal.dataset.fromTask = typed;

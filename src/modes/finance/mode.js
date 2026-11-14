@@ -146,7 +146,7 @@ const FinanceMode = (() => {
     if (global) {
       Array.from(global.options).forEach(opt => {
         const val = opt.value || "";
-        if (!val || opt.disabled) return;
+        if (!val || opt.disabled || opt.dataset.pictures) return;
         const clone = document.createElement("option");
         clone.value = val;
         clone.textContent = opt.text || val;

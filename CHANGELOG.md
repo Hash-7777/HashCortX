@@ -19,7 +19,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   pictures, to OpenRouter's models beside the words, and to Gemini's
   picture models in the conversation, where before only the words went. A
   model that makes pictures from words alone says the attached picture was
-  not sent.
+  not sent. A picture model is offered only where a picture can be made:
+  Chats uses it even with an agent chosen, and HashCoder, Compare, the
+  Sandbox, Finance, the ERP, the Agent Swarm and 3D Forge leave it out of
+  their menus and their lists of models to move to.
 
 ### Fixed
 

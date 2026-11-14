@@ -556,7 +556,7 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
   function availableModels() {
     const src = $("model");
     if (!src) return [];
-    return Array.from(src.options)
+    return Array.from(src.options).filter(o => !o.dataset.pictures)   // a picture model cannot write a system
       .map(o => ({ value:o.value, label:o.textContent || o.label || o.value, disabled:o.disabled }))
       .filter(o => o.value && !o.disabled && !window.HCModelRoutes.isRetired(o.value))
       .sort((a, b) => modelScore(b.value, b.label) - modelScore(a.value, a.label));

@@ -456,7 +456,7 @@
     if (!sourceOptions.length) return `<option value="">Main model</option>`;
     return [
       `<option value="">Main model (${escapeHtml(src.options[src.selectedIndex]?.textContent || current || "selected")})</option>`,
-      ...sourceOptions.map((opt) => `<option value="${escapeHtml(opt.value)}">${escapeHtml(opt.textContent || opt.value)}</option>`),
+      ...sourceOptions.filter((opt) => !opt.dataset.pictures).map((opt) => `<option value="${escapeHtml(opt.value)}">${escapeHtml(opt.textContent || opt.value)}</option>`),
     ].join("");
   }
 
@@ -551,7 +551,7 @@
 
   function providerModelsForForge(bigTask, options = {}) {
     const includeCooling = !!options.includeCooling;
-    const allOpts = Array.from(document.getElementById("model")?.options || [])
+    const allOpts = Array.from(document.getElementById("model")?.options || []).filter((o) => !o.dataset.pictures)
       .map((o) => ({ value: o.value, label: o.textContent || o.label || o.value }))
       .filter((o) => {
         const provider = providerFromValue(o.value);
@@ -2916,7 +2916,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
   function askForSubjectBrief(prompt, signal) {
     return window.HCForgeAskSubject.ask(prompt, signal, {
       call: (model, messages, s) => window._H.ollamaChat(model, messages, null, s, { json: true }),
-      models: () => Array.from(document.getElementById("model")?.options || [])
+      models: () => Array.from(document.getElementById("model")?.options || []).filter((o) => !o.dataset.pictures)
         .map((o) => ({ value: o.value, label: o.textContent || o.label || o.value }))
         .filter((o) => o.value && !o.value.startsWith("\u2500")),
       chosen: () => selectedModelFor("god"),
@@ -3092,7 +3092,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
     const original = sel?.value || "";
     // Every model a person can run, not one per provider: when a provider says
     // a model is gone, its others are the next to ask — js/model-routes.js.
-    const options = () => Array.from(document.getElementById("model")?.options || [])
+    const options = () => Array.from(document.getElementById("model")?.options || []).filter((o) => !o.dataset.pictures)
       .map((o) => ({ value: o.value, label: o.textContent || o.label || o.value }))
       .filter((o) => o.value && !o.value.startsWith("─"));
     const routes = window.HCModelRoutes.createRun({

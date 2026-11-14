@@ -3300,7 +3300,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       models.forEach(m => {
         const opt = document.createElement("option");
         opt.value = m.value;
-        opt.dataset.cloudOption = "1";
+        opt.dataset.cloudOption = "1"; if (m.imageGen) opt.dataset.pictures = "1";   // a picture model: only a plain chat can use it
         opt.dataset.baseLabel = m.shortLabel || m.label;
         opt.dataset.missingKey = "0";
         opt.textContent = m.shortLabel || m.label;
@@ -3343,7 +3343,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     offeredModels(grp.models).forEach(m => {
       const opt = document.createElement("option");
       opt.value = m.value;
-      opt.dataset.cloudOption = "1";
+      opt.dataset.cloudOption = "1"; if (m.imageGen) opt.dataset.pictures = "1";   // a picture model: only a plain chat can use it
       opt.dataset.baseLabel = m.shortLabel || m.label;
       opt.dataset.missingKey = "0";
       opt.textContent = m.shortLabel || m.label;
@@ -3404,7 +3404,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       compareModelEl.appendChild(child.cloneNode(true));
     });
     Array.from(compareModelEl.querySelectorAll("option")).forEach(opt => {
-      if (opt.dataset.separator === "1") opt.remove();
+      if (opt.dataset.separator === "1" || opt.dataset.pictures) opt.remove();   // a picture model cannot be compared
       else if (opt.value === modelEl.value && Array.from(compareModelEl.options).some(o => o.value && o.value !== modelEl.value && !o.disabled)) {
         opt.disabled = true;
       }
@@ -4472,7 +4472,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // ever read the knowledge base — there is no tool for it and this branch
     // retrieves nothing — so it had no business deciding whether an agent
     // runs at all.
-    else if (activeAgent) {
+    else if (activeAgent && !isImageGenModel(modelEl.value)) {   // a picture model makes the picture asked for, below
       const ctrl = new AbortController();
       state.abort = ctrl;
       assistant.runTrace = beginAgentRun(activeAgent, seedText);

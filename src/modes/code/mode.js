@@ -425,7 +425,7 @@
       autoOpt.value = '';
       autoOpt.textContent = 'Auto';
       dest.appendChild(autoOpt);
-      const gone = (opt) => !!window.HCModelRoutes?.isRetired(opt.value);
+      const gone = (opt) => !!window.HCModelRoutes?.isRetired(opt.value) || opt.dataset.pictures === '1';   // nor a picture model, which cannot do this work
       [...src.children].forEach(node => {   // the menu's own rows: an option inside a group comes with its group, not again on its own
         if (node.tagName === 'OPTGROUP') {
           const group = document.createElement('optgroup');

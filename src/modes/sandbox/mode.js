@@ -119,7 +119,7 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
     const src = document.getElementById("model");
     if (!src) return [];
     return Array.from(src.options).filter(o =>
-      o.value && !o.disabled &&
+      o.value && !o.disabled && !o.dataset.pictures &&
       !o.textContent.includes("Loading") &&
       !o.textContent.includes("offline")
     );

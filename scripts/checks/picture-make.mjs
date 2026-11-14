@@ -115,5 +115,25 @@ console.log('\nThe app sends what this builds:');
   ok('what was left out is said beside the answer', /\[text, req\.note\]\.filter\(Boolean\)/.test(app));
 }
 
+console.log('\nA picture model is offered only where a picture can be made:');
+{
+  const read = (...p) => readFileSync(join(root, 'src', ...p), 'utf8');
+  const app = read('js', 'app.js');
+  ok('the main menu marks each picture model, in both places it builds an option', (app.match(/opt\.dataset\.cloudOption = "1"; if \(m\.imageGen\) opt\.dataset\.pictures = "1";/g) || []).length === 2);
+  ok('a chat agent leaves a picture model to make the picture', /else if \(activeAgent && !isImageGenModel\(modelEl\.value\)\) \{/.test(app));
+  ok('Compare does not offer one', /if \(opt\.dataset\.separator === "1" \|\| opt\.dataset\.pictures\) opt\.remove\(\);/.test(app));
+  ok('HashCoder does not', /const gone = \(opt\) => [^\n]*\|\| opt\.dataset\.pictures === '1';/.test(read('modes', 'code', 'mode.js')));
+  ok('the Sandbox does not', /o\.value && !o\.disabled && !o\.dataset\.pictures &&/.test(read('modes', 'sandbox', 'mode.js')));
+  ok('Finance does not', /if \(!val \|\| opt\.disabled \|\| opt\.dataset\.pictures\) return;/.test(read('modes', 'finance', 'mode.js')));
+  ok('the ERP does not', /return Array\.from\(src\.options\)\.filter\(o => !o\.dataset\.pictures\)/.test(read('modes', 'systems', 'mode.js')));
+  const swarm = read('modes', 'agent-maker', 'mode.js');
+  ok('the Agent Swarm does not, in its list, its team picker or its lead\'s menu', /\.filter\(o => o\.value && !o\.disabled && !o\.dataset\.pictures\)/.test(swarm)
+    && /notCooling\(Array\.from\(document\.getElementById\("model"\)\?\.options \|\| \[\]\)\.filter\(o => !o\.dataset\.pictures\)/.test(swarm)
+    && /godDst\.querySelectorAll\("option\[data-pictures\]"\)\.forEach\(o => o\.remove\(\)\)/.test(swarm));
+  const forge = read('modes', 'forge', 'mode.js');
+  ok('3D Forge does not, in any of the four places it reads the menu', /sourceOptions\.filter\(\(opt\) => !opt\.dataset\.pictures\)/.test(forge)
+    && (forge.match(/getElementById\("model"\)\?\.options \|\| \[\]\)\.filter\(\(o\) => !o\.dataset\.pictures\)/g) || []).length === 3);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/picture-make.js)`);
 process.exit(fail ? 1 : 0);
