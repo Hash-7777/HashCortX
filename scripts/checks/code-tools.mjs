@@ -604,5 +604,15 @@ console.log('\nWhat a deletion tells the model:');
   HC.undo = keepUndo;
 }
 
+console.log('\nWhat a Python run tells the model:');
+{
+  const failed = JSON.stringify({ stdout: '', stderr: "FileNotFoundError: [Errno 44] No such file or directory: 'logo.jpg'", error: 'PythonError', files: [] });
+  const told = JSON.parse(HC.code.pythonHint(failed));
+  ok('a Python run that could not find a file is told the sandbox holds no project files, and what to do', /holds none of the project's files/.test(told.hint) && /read_file/.test(told.hint) && /shell_run/.test(told.hint) && told.stderr.includes('FileNotFoundError'));
+  ok('...in words after a result that is not JSON', /holds none of the project's files/.test(HC.code.pythonHint('No such file or directory: x')));
+  ok('...and a run that worked is passed on as it came', HC.code.pythonHint('{"stdout":"2\\n"}') === '{"stdout":"2\\n"}');
+  ok('the Python tool hands its result through it', /fn: async \(p\) => HC\.code\.pythonHint\(await viaChatTool\('execute_python'/.test(src('platform', 'tauri', 'hashcoder.js')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);
 process.exit(fail ? 1 : 0);

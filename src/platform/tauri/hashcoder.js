@@ -703,6 +703,18 @@
    * carries the address checks in url-safety.js and the name resolution in
    * net.rs; a second copy here would be a second place for those to be missing.
    */
+  /**
+   * A Python run that could not find a file was looking for one of the
+   * project's: the sandbox holds none of them. Said in the result, where the
+   * model is reading, since the tool's description alone did not stop it.
+   */
+  HC.code.pythonHint = (out) => {
+    if (!/FileNotFoundError|No such file or directory/.test(String(out || ''))) return out;
+    const hint = 'This Python runs in a sandbox that holds none of the project\'s files, so no project file can be opened from it. Read the file with read_file and put what is needed into the code, or run the project\'s own Python with shell_run.';
+    try { const j = JSON.parse(out); if (j && typeof j === 'object') return JSON.stringify({ ...j, hint }); } catch { /* not JSON: said after it */ }
+    return `${out}\n\n${hint}`;
+  };
+
   async function viaChatTool(name, args) {
     const run = window._H?.runOneTool;
     if (!run) return JSON.stringify({ error: `${name} is not available in this window, so nothing was done. Carry on without it, and say what could not be done.` });
@@ -1021,7 +1033,7 @@
       parameters: {
         code: { type: 'string', description: 'Python source. Stdout is captured. Files written to /output/<name> are offered to the user to save.' },
       },
-      fn: (p) => viaChatTool('execute_python', { code: p.code }),
+      fn: async (p) => HC.code.pythonHint(await viaChatTool('execute_python', { code: p.code })),
     },
     {
       name: 'current_datetime',

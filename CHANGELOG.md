@@ -26,6 +26,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder's Python run says why it cannot open a project file.**
+  Python runs in a sandbox that holds none of the project's files. A run
+  that could not find a file now says so in its result, and to read the
+  file with read_file or run the project's own Python with shell_run.
+
 - **Deleting a file tells HashCoder's model it worked.** A deletion that
   succeeded came back to the model as nothing at all. It now says the file
   was deleted, and whether Undo can bring it back.
