@@ -8,11 +8,11 @@
 //
 //   · the sentence for the step in work ("Searching the web for ...",
 //     "Reading <site>"), with the part it names set apart;
-//   · the journey's stations, in the order they were reached;
-//   · the parts of a question of several asks (js/code/asks.js), each
-//     served once something it read gives its words (by: which sources),
-//     and answered once
-//     the answer does (js/chat/finish.js covers);
+//   · the kinds of step reached, in order (the thinking line's mark);
+//   · the parts of a question of two asks or more (js/code/asks.js),
+//     each served once something it read gives its words (by: which
+//     sources), and answered once the answer does (js/chat/finish.js
+//     covers);
 //   · the sources: each search and each page read, with a short preview;
 //   · once the answer is in: which of its sentences each source backs,
 //     numbered in the order first cited, a sentence holding a detail
@@ -30,6 +30,8 @@
   const SEARCHES = { web_search: 'Web search', wikipedia: 'Wikipedia', pubmed_search: 'PubMed' };
   const STATION = { web_search: 'search', wikipedia: 'search', pubmed_search: 'search', fetch_url: 'read', execute_python: 'work', calculate: 'work', current_datetime: 'work', remember_fact: 'memory', recall_facts: 'memory' };
   const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+  /** A question of this many asks or more is shown in its parts (the finishing check lists from three, js/code/asks.js). */
+  const PARTS = 2;
   const EXCERPT = 240;
   const MATCH = 6000;
 
@@ -42,7 +44,7 @@
   /** The view's record at the start of a reply to `request`, begun at `now`. */
   function start(request, now = Date.now()) {
     const A = window.HCCodeAsks;
-    const asks = A && A.split ? A.split(String(request || '')) : [];
+    const asks = A && A.split ? A.split(String(request || ''), PARTS) : [];
     const parts = (Array.isArray(asks) ? asks : []).map((a) => ({ text: String(a).trim().replace(/[?.!]+$/, ''), served: false, found: false, by: [] }));
     return {
       v: 1, startedAt: now, done: false, took: null,
@@ -212,7 +214,7 @@
     for (const s of sentences) {
       const words = s.split(/\s+/);
       const tail = words.slice(-4).join(' ');
-      if (unsourced.some((d) => s.includes(d))) { m.chips.push({ tail, n: '?', warn: true }); continue; }
+      if (unsourced.some((d) => s.includes(d))) { m.chips.push({ tail, n: '?', warn: true }); chipOf.set(s, '?'); continue; }
       const source = m.sources.find((src) => src.text && covers(src.text, s));
       if (!source) continue;
       if (!source.n) source.n = next++;

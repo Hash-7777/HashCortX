@@ -4,8 +4,8 @@
 // Loads the real src/js/chat/view-model.js with what it reads (the asks of
 // a request, the chat's test of an answer covering an ask, code blocks)
 // and holds the record a chat reply's view is drawn from: the sentence
-// for each step, written by the app from the step itself; the journey's
-// stations, in the order they were reached; the parts of the question and
+// for each step, written by the app from the step itself; the kinds of
+// step reached, in order; the parts of the question and
 // what served and answered them; the sources and their previews; and,
 // once the answer is in, which sentence each source backs, the parts at a
 // glance, how much of it came from what was read, and what is not
@@ -44,7 +44,7 @@ console.log('\nIt begins with the question:');
 let m = typeof V.start === 'function' ? V.start(ASK, 1000) : null;
 {
   ok('the parts of a question of several asks, each open', !!m && m.parts.length === 3 && m.parts.every((p) => !p.served && !p.found && p.by.length === 0) && m.parts[0].text === 'When was Larkfield Lighthouse first lit', json(m && m.parts));
-  ok('the journey starts at understanding, and says how many things there are to find out', !!m && m.now === 'understand' && json(m.stations) === '["understand"]' && said(m) === 'Reading your question: three things to find out', said(m));
+  ok('it starts at understanding, and says how many things there are to find out', !!m && m.now === 'understand' && json(m.stations) === '["understand"]' && said(m) === 'Reading your question: three things to find out', said(m));
   ok('...and a question of one ask is just read', said(V.start('What is a tide?', 0)) === 'Reading your question' && V.start('What is a tide?', 0).parts.length === 0);
   ok('it is plain data, kept with the reply', !!m && json(JSON.parse(json(m))) === json(m) && m.v === 1 && m.startedAt === 1000);
 }
@@ -70,12 +70,12 @@ console.log('\nWhat it searched and read:');
   ok('a search is a source, named by what it looked for', m.sources.length === 1 && m.sources[0].kind === 'search' && m.sources[0].label === 'Wikipedia · Larkfield Lighthouse', json(m.sources[0]));
   ok('...with a preview of its first result: site, title, its opening lines', m.sources[0].site === 'en.wikipedia.org' && m.sources[0].title === 'Larkfield Lighthouse' && /first lit in 1874/.test(m.sources[0].excerpt));
   ok('the parts whose words it gives are served by it, not yet answered', m.parts[0].served === true && m.parts[1].served === true && m.parts[2].served === false && m.parts.every((p) => !p.found), json(m.parts));
-  ok('the journey has reached the search', json(m.stations) === '["understand","search"]');
+  ok('it has reached the search', json(m.stations) === '["understand","search"]');
   V.toolCall(m, 'fetch_url', { url: PAGE.url });
   V.toolResult(m, 'fetch_url', PAGE);
   ok('each part keeps which sources served it, for the map to draw its lines', json(m.parts.map((x) => x.by)) === '[[0],[0],[1]]', json(m.parts.map((x) => x.by)));
   ok('a page read is a source of its own, previewed by its site and first words', m.sources.length === 2 && m.sources[1].kind === 'page' && m.sources[1].site === 'larkfield-harbour.example' && /open to visitors on summer weekends/.test(m.sources[1].excerpt) && m.parts[2].served === true, json(m.sources[1]));
-  ok('...and the journey has reached reading', json(m.stations) === '["understand","search","read"]' && m.now === 'read');
+  ok('...and reading', json(m.stations) === '["understand","search","read"]' && m.now === 'read');
   const failed = V.start(ASK, 0); V.toolCall(failed, 'fetch_url', { url: 'https://x.example' }); V.toolResult(failed, 'fetch_url', { error: 'The user declined to read that page.' });
   ok('a page that could not be read is not a source', failed.sources.length === 0);
   const tool = V.start(ASK, 0); V.toolCall(tool, 'calculate', { expression: '2+2' }); V.toolResult(tool, 'calculate', { result: 4 });
@@ -149,6 +149,24 @@ console.log('\nAn answer from what it knows, with nothing read:');
   const fenced = V.start(ASK, 0); V.toolCall(fenced, 'wikipedia', {}); V.toolResult(fenced, 'wikipedia', WIKI);
   V.finish(fenced, 'Here:\n```\nIt was first lit in 1874 and built by the harbour board.\n```', { ended: 1 });
   ok('words inside a code block are not given a chip', fenced.chips.length === 0);
+}
+
+console.log('\nA question of two parts:');
+{
+  const two = V.start('When was the Eiffel Tower completed, and how tall is it?', 0);
+  ok('is two things to find out, each in the person\'s words', json(two.parts.map((p) => p.text)) === json(['When was the Eiffel Tower completed', 'how tall is it']) && said(two) === 'Reading your question: two things to find out', json(two.parts));
+  V.toolCall(two, 'wikipedia', { query: 'Eiffel Tower' });
+  V.toolResult(two, 'wikipedia', { results: [{ title: 'Eiffel Tower', snippet: 'The company built the tower from 1887 to 1889. The tower is 330 metres (1,083 ft) tall.', url: 'https://en.wikipedia.org/wiki/Eiffel_Tower' }] });
+  ok('...each served by what it read', two.parts.every((p) => p.served));
+  V.finish(two, 'The Eiffel Tower was completed in 1889. It is 330 metres tall.', { checked: true, ended: 1000 });
+  ok('...and answered at a glance, each by its sentence', json(two.glance.map((g) => g.answer)) === json(['The Eiffel Tower was completed in 1889.', 'It is 330 metres tall.']), json(two.glance));
+  const wrong = V.start('When was the Eiffel Tower completed, and how tall is it?', 0);
+  V.toolCall(wrong, 'wikipedia', { query: 'Eiffel Tower' });
+  V.toolResult(wrong, 'wikipedia', { results: [{ title: 'Eiffel Tower', snippet: 'The company built the tower from 1887 to 1889. The tower is 330 metres (1,083 ft) tall.', url: 'https://en.wikipedia.org/wiki/Eiffel_Tower' }] });
+  V.finish(wrong, 'The Eiffel Tower was completed in 1889. It is 324 meters tall.', { unsourced: ['324 meters'], checked: true, ended: 1000 });
+  ok('a part answered by a sentence not confirmed is marked so at a glance, not given a source', json(wrong.glance.map((g) => g.n)) === '[1,"?"]', json(wrong.glance));
+  const one = V.start('How tall is the Eiffel Tower?', 0);
+  ok('a question of one part is one question', one.parts.length === 0 && said(one) === 'Reading your question');
 }
 
 console.log('\nFigures nothing given or read holds:');

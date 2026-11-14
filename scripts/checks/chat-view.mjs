@@ -1,10 +1,10 @@
 // ==============================================================
 // A chat agent's thinking view, drawn — checks
 //
-// Loads the real src/js/chat/view.js and holds its pure parts: which
-// stations the journey draws, in order; the thinking line with the part
-// it names in a strong weight and everything escaped; the map's lines from
-// which sources served which part; and which rows a finished reply's foot
+// Loads the real src/js/chat/view.js and holds its pure parts: the
+// thinking line with the part it names in a strong weight and everything
+// escaped; that the head draws no row of steps; the map's lines from which
+// sources served which part; and which rows a finished reply's foot
 // has. Also holds that every mark it draws is drawn on currentColor, that
 // its stylesheet uses the shared tokens only and is linked, and that the
 // script is loaded. The drawing itself is seen in the real app.
@@ -33,13 +33,16 @@ for (const f of ['fences.js', 'code/asks.js', 'code/verify.js', 'code/facts.js',
 try { vm.runInContext(src('js', 'chat', 'view.js'), sandbox, { filename: 'view.js' }); } catch (e) { ok('view.js loads', false, String(e && e.message)); }
 const V = sandbox.HCChatView || {};
 
-console.log('\nThe journey:');
+console.log('\nThe head has no row of steps:');
 {
-  const st = (stations) => (typeof V.stationsOf === 'function' ? json(V.stationsOf({ stations })) : null);
-  ok('understanding first, writing after what it did', st(['understand', 'search', 'read']) === '["understand","search","read","write"]', st(['understand', 'search', 'read']));
-  ok('...checking last, once it happened', st(['understand', 'search', 'check', 'write']) === '["understand","search","write","check"]');
-  ok('...whatever order write and check were reached in, and only known stations', st(['understand', 'write', 'work', 'nonsense', 'memory']) === '["understand","work","memory","write"]');
-  ok('an answer with no steps is understood, then written', st(['understand']) === '["understand","write"]' && json(V.stationsOf?.(null)) === '["understand","write"]');
+  const view = src('js', 'chat', 'view.js'), css = src('css', 'chat-view.css');
+  ok('nothing draws one, and nothing styles one', !/cv-journey|cv-st\b|cv-disc|stationsOf/.test(view) && !/cv-journey|\.cv-st\b|cv-disc|cv-fill/.test(css));
+}
+
+console.log('\nAt a glance:');
+{
+  const view = src('js', 'chat', 'view.js');
+  ok('a part answered by a sentence not confirmed has the mark for it, not a tick', /icon\(g\.n === '\?' \? 'unsure' : 'done'\)/.test(view) && /\.cv-g\.warn > \.cv-i \{ color: var\(--warn\); \}/.test(src('css', 'chat-view.css')));
 }
 
 console.log('\nThe thinking line:');

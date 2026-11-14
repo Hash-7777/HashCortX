@@ -4,9 +4,8 @@
 // Draws the record js/chat/view-model.js keeps on a reply, in two places
 // beside the reply's own bubble, which the chat rewrites while it streams:
 //
-//   · the head, above it, while the agent works: the journey (the kinds of
-//     step it took, lit as reached), the thinking line (one sentence of
-//     what it does now, with its mark), the map (the question's parts, its
+//   · the head, above it, while the agent works: the thinking line (one
+//     sentence of what it does now, with its mark), the map (the question's parts, its
 //     searches and pages, a line where what it read gives a part's words,
 //     a tick when the answer covers it), and a preview of each source;
 //   · the foot, below it, once it is done: the parts at a glance, how much
@@ -16,10 +15,10 @@
 //
 // A live head is updated step by step: what is new is added and fades in,
 // what is there stays. Only fades, short slides and lines drawing; the
-// station in work breathes, and the clock counts, only while the run goes
-// on. Every mark is drawn here, on a 16-unit grid, on currentColor.
+// clock counts only while the run goes on. Every mark is drawn here, on a
+// 16-unit grid, on currentColor.
 //
-// stationsOf, sayText, linksOf and footRows are pure; the rest draws.
+// sayText, linksOf and footRows are pure; the rest draws.
 // Published as window.HCChatView. Checked by scripts/checks/chat-view.mjs.
 // ==============================================================
 (function () {
@@ -42,17 +41,11 @@
     down: '<path d="m3.5 6 4.5 4.5L12.5 6"/>',
     ring: '<circle cx="8" cy="8" r="5.6"/><path class="cv-tick" d="m5.6 8.2 1.7 1.7 3.2-3.4"/>',
   };
-  const NAMES = { understand: 'Understand', search: 'Search', read: 'Read', work: 'Work out', memory: 'Memory', write: 'Write', check: 'Check' };
+  /** The kinds of step the thinking line has a mark for. */
+  const STEPS = ['understand', 'search', 'read', 'work', 'memory', 'write', 'check'];
   const icon = (k, cls = 'cv-i') => `<svg class="${cls}" viewBox="0 0 16 16" aria-hidden="true">${ICONS[k] || ''}</svg>`;
   const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const frame = (fn) => requestAnimationFrame(() => requestAnimationFrame(fn));
-
-  /** The stations the journey draws: understanding, those reached, then writing, and checking once it happened. */
-  function stationsOf(m) {
-    const reached = (m && Array.isArray(m.stations) ? m.stations : []).filter((s) => NAMES[s]);
-    const middle = reached.filter((s) => s !== 'understand' && s !== 'write' && s !== 'check');
-    return ['understand', ...middle, 'write', ...(reached.includes('check') ? ['check'] : [])];
-  }
 
   /** The sentence as HTML: the parts it names in a strong weight, everything escaped. */
   const sayText = (m) => (m && Array.isArray(m.say) ? m.say.map((p) => (typeof p === 'string' ? esc(p) : `<b>${esc(p && p.b)}</b>`)).join('') : '');
@@ -81,8 +74,7 @@
   function head() {
     const el = document.createElement('div');
     el.className = 'cv-head';
-    el.innerHTML = `<ol class="cv-journey" aria-label="Steps"><i class="cv-fill"></i></ol>
-      <div class="cv-think" aria-live="polite"><span class="cv-glyph"></span><span class="cv-say"></span><span class="cv-clock"></span></div>
+    el.innerHTML = `<div class="cv-think" aria-live="polite"><span class="cv-glyph"></span><span class="cv-say"></span><span class="cv-clock"></span></div>
       <div class="cv-work"><div class="cv-map" hidden><div class="cv-map-h"><span>Your question</span><span class="cv-meter"><span class="cv-track"><i></i></span><span class="cv-count"></span></span></div><svg class="cv-links" aria-hidden="true"></svg><div class="cv-cols"><div class="cv-parts"></div><div class="cv-srcs"></div></div></div><div class="cv-reads"></div></div>`;
     return el;
   }
@@ -91,22 +83,8 @@
   function update(el, m, { live = false } = {}) {
     if (!el || !m) return el;
     const show = (n) => { if (live) frame(() => n.classList.add('on')); else n.classList.add('on'); };
-    // The journey.
-    const j = el.querySelector('.cv-journey'), stations = stationsOf(m);
-    stations.forEach((k) => {
-      if (j.querySelector(`[data-k="${k}"]`)) return;
-      const li = document.createElement('li');
-      li.className = 'cv-st'; li.dataset.k = k;
-      li.innerHTML = `<span class="cv-disc">${icon(k)}</span><span class="cv-st-name">${NAMES[k]}</span>`;
-      const after = [...j.querySelectorAll('.cv-st')].find((x) => stations.indexOf(x.dataset.k) > stations.indexOf(k));
-      j.insertBefore(li, after || null);
-      show(li);
-    });
-    const at = m.done ? stations.length : stations.indexOf(m.now);
-    j.querySelectorAll('.cv-st').forEach((li, i) => { li.classList.toggle('past', i < at); li.classList.toggle('now', i === at && !m.done); });
-    j.style.setProperty('--cv-done', String(stations.length > 1 ? Math.min(1, Math.max(0, at) / (stations.length - 1)) : 0));
-    // The thinking line.
-    const glyphKey = m.done ? 'done' : (NAMES[m.now] ? m.now : 'understand');
+    // The thinking line, with the mark of the kind of step in work.
+    const glyphKey = m.done ? 'done' : (STEPS.includes(m.now) ? m.now : 'understand');
     const g = el.querySelector('.cv-glyph');
     if (g.dataset.k !== glyphKey) { g.dataset.k = glyphKey; g.innerHTML = icon(glyphKey); }
     const say = el.querySelector('.cv-say'), html = sayText(m);
@@ -191,7 +169,7 @@
     const parts = [];
     if (rows.includes('glance')) {
       const found = m.parts.filter((p) => p.found).length;
-      parts.push(`<section class="cv-panel" aria-label="At a glance"><div class="cv-panel-h">${icon('glance')}At a glance<span class="cv-meta">${found} of ${m.parts.length} answered</span></div>${m.glance.map((g) => `<div class="cv-g">${icon('done')}<span class="cv-g-part">${esc(g.part)}</span><span class="cv-g-val">${esc(g.answer)}</span>${chip(g.n)}</div>`).join('')}</section>`);
+      parts.push(`<section class="cv-panel" aria-label="At a glance"><div class="cv-panel-h">${icon('glance')}At a glance<span class="cv-meta">${found} of ${m.parts.length} answered</span></div>${m.glance.map((g) => `<div class="cv-g${g.n === '?' ? ' warn' : ''}">${icon(g.n === '?' ? 'unsure' : 'done')}<span class="cv-g-part">${esc(g.part)}</span><span class="cv-g-val">${esc(g.answer)}</span>${chip(g.n)}</div>`).join('')}</section>`);
     }
     if (rows.includes('grounding')) {
       const { sourced, total } = m.grounding;
@@ -360,5 +338,5 @@
     });
   }
 
-  window.HCChatView = { ICONS, NAMES, stationsOf, sayText, linksOf, footRows, head, update, foot, chips, apply, note, writing, finish, mount };
+  window.HCChatView = { ICONS, sayText, linksOf, footRows, head, update, foot, chips, apply, note, writing, finish, mount };
 })();
