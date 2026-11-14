@@ -16,7 +16,9 @@
 //     PMID, DOI, PMC or arXiv number, that neither the person nor anything
 //     the agent's tools returned gives is sent back once to be found, taken
 //     out or said to be unconfirmed, and what is still unconfirmed is said
-//     under the answer.
+//     under the answer. An agent that may answer from what it knows has
+//     its details held to a source only once it has searched or read
+//     something; a paper it cites, always.
 //
 // Each reads the app's record of the run, never the agent's word for it.
 //
@@ -105,9 +107,12 @@
    * The finishing checks of one chat run, as the shared loop takes them:
    * { finish, left, wrap }. `messages` the run's conversation (read as it
    * grows), `sent` how often the run was sent back for each reason,
-   * `request` the person's request with what they added while it worked.
+   * `request` the person's request with what they added while it worked,
+   * `knowledge` true for an agent that may answer from what it knows: its
+   * details are held to what it found only once it has searched or read
+   * something; a paper it cites, always.
    */
-  function checks({ messages, sent, request } = {}) {
+  function checks({ messages, sent, request, knowledge = false } = {}) {
     const V = window.HCCodeVerify, A = window.HCCodeAsks, Fa = window.HCCodeFacts;
     const s = sent || {};
     const note = (V && V.APP_NOTE) || 'Note from HashCortX, not from the person:';
@@ -126,7 +131,8 @@
     const claimLook = async (reply) => (V && V.claimNote ? V.claimNote(reply, messages, s.claim || 0) : null);
 
     const factsLook = async (reply) => {
-      const seen = Fa ? Fa.check({ files: [{ path: 'answer.md', text: String(reply || '') }], messages }) : { unsourced: [] };
+      const looked = !knowledge || !V || !V.searchedSince || V.searchedSince(messages);
+      const seen = Fa && looked ? Fa.check({ files: [{ path: 'answer.md', text: String(reply || '') }], messages }) : { unsourced: [] };
       const unsourced = [...seen.unsourced, ...unreadCites(reply, messages)];   // a paper cited that nothing found is one more
       found = unsourced.length ? { unsourced } : null;   // square brackets in a chat answer are links, not unfinished text
       if (!found || (s.facts || 0) >= 1) return null;

@@ -101,6 +101,25 @@ await (async () => {
   ok('the loop\'s own line for a page is not used: the chat says its own', plain.left().unconfirmed === null);
 })();
 
+console.log('\nAn agent that may answer from what it knows:');
+await (async () => {
+  if (typeof F.checks !== 'function') return;
+  const reply = 'Rosewood Bakery opened in 1987; call 020 7946 0321. See PMID 33445566.';
+  const known = F.checks({ messages: ask('Tell me about Rosewood Bakery'), sent: sent(), request: 'x', knowledge: true });
+  const back = await known.finish[2].run(reply);
+  ok('with no search, its details are its own to give: only a paper nothing found is sent back', !!back && /PMID 33445566/.test(back.message) && !/020 7946 0321/.test(back.message) && !/1987/.test(back.message), back && back.message);
+  ok('...and only that paper is said under the answer', /PMID 33445566/.test(F.leftLine(known.left().found)) && !/0321/.test(F.leftLine(known.left().found)));
+  const plain = F.checks({ messages: ask('Tell me about Rosewood Bakery'), sent: sent(), request: 'x', knowledge: true });
+  ok('an answer from what it knows with no paper in it is left alone', (await plain.finish[2].run('Rosewood Bakery opened in 1987; call 020 7946 0321.')) === null && F.leftLine(plain.left().found) === '');
+  const looked = F.checks({ messages: searched('Tell me about Rosewood Bakery', 'Rosewood Bakery, open daily.'), sent: sent(), request: 'x', knowledge: true });
+  const back2 = await looked.finish[2].run('Rosewood Bakery opened in 1987; call 020 7946 0321.');
+  ok('once it searched, its details are held to what it found, as any agent\'s', !!back2 && /020 7946 0321/.test(back2.message), back2 && back2.message);
+  const asks = F.checks({ messages: ask('x'), sent: sent(), request: 'What are the hours? Where is it? Who owns it?', knowledge: true });
+  ok('the parts of the question and a search it says it made are held to as for any agent', !!(await asks.finish[0].run('It is on the corner.')) && !!(await asks.finish[1].run('I searched the web: it opens at nine.')));
+  const grounded = F.checks({ messages: ask('Tell me about Rosewood Bakery'), sent: sent(), request: 'x' });
+  ok('an agent not marked so is held to every detail, search or none', !!(await grounded.finish[2].run('Rosewood Bakery opened in 1987; call 020 7946 0321.')));
+})();
+
 console.log('\nA paper it cites that nothing found:');
 await (async () => {
   if (typeof F.checks !== 'function') return;
