@@ -52,7 +52,8 @@ console.log('Which agents run on the shared loop:');
   ok('HashCortx, on a cloud model, and not on a model on this computer', R.onLoop?.({ id: 'builtin_hash_ai', tools: ['memory', 'web_search'] }, 'cloud:groq:m') === true && R.onLoop?.({ id: 'builtin_hash_ai' }, 'qwen2.5:7b') === false);
   ok('Coder, on a cloud model, and not on a model on this computer', R.onLoop?.({ id: 'builtin_coder', tools: ['web_search', 'code_interpreter'] }, 'cloud:groq:m') === true && R.onLoop?.({ id: 'builtin_coder' }, 'qwen2.5:7b') === false);
   ok('Medical Lexi-Check, on a cloud model, and not on a model on this computer', R.onLoop?.({ id: 'builtin_medical_lexi', tools: ['web_search', 'fetch_url'] }, 'cloud:groq:m') === true && R.onLoop?.({ id: 'builtin_medical_lexi' }, 'qwen2.5:7b') === false);
-  ok('...not the agents not moved yet, nor a lite one', R.onLoop?.({ id: 'builtin_ats_auditor' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_url_reader', lite: true }, 'cloud:groq:m') === false && R.onLoop?.(null, 'cloud:groq:m') === false);
+  ok('ATS CV Auditor, on a cloud model, and not on a model on this computer', R.onLoop?.({ id: 'builtin_ats_auditor', tools: ['web_search'] }, 'cloud:groq:m') === true && R.onLoop?.({ id: 'builtin_ats_auditor' }, 'qwen2.5:7b') === false);
+  ok('...not an agent a person made, nor a lite one', R.onLoop?.({ id: 'agent_k2x9' }, 'cloud:groq:m') === false && R.onLoop?.({ id: 'builtin_url_reader', lite: true }, 'cloud:groq:m') === false && R.onLoop?.(null, 'cloud:groq:m') === false);
 }
 
 let ids = 0;

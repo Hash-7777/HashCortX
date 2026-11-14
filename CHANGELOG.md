@@ -25,25 +25,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   given while the model is still writing. The request counts toward the
   provider's usage like any other.
 
-- **URL Reader, Researcher, Published Papers Researcher, Deep Research,
-  HashCortx, Coder and Medical Lexi-Check run on HashCoder's agent loop
-  when they use a cloud model.** The first seven of the chat's agents to
-  move. A run ends when it stops making
-  progress, within the loop's limits, which leaves room for a brief that
-  needs several searches. The conversation
-  each is shown is sized to the model rather than cut to a fixed size, older
-  questions folded into a short record instead of dropped; web searches
-  run together; a call written slightly wrong is put right; a failed call made
-  again is answered without running it again. The answer is checked before
-  it is shown: a question of several parts with parts left out, a search
-  it says it made when none ran (a web, Wikipedia or PubMed search, or a
-  page read, counts), Python it says ran when none did, and an address,
-  number or email, or a paper cited by its PMID, DOI, PMC or arXiv number,
-  that nothing it read gives, are each sent back once, and anything still
-  unconfirmed is said under the answer. HashCortx and Coder may answer
-  from what they know: their details are held to a source only once they
-  have searched or read something, and a paper they cite always is. The other agents,
-  and every agent on a model on this computer, run as before.
+- **The chat's built-in agents run on HashCoder's agent loop when they use
+  a cloud model:** URL Reader, Researcher, Published Papers Researcher,
+  Deep Research, HashCortx, Coder, Medical Lexi-Check and ATS CV Auditor.
+  A run ends when it stops making progress, within the loop's limits,
+  which leaves room for a brief that needs several searches. The
+  conversation each is shown is sized to the model rather than cut to a
+  fixed size, older questions folded into a short record instead of
+  dropped; web searches run together; a call written slightly wrong is put
+  right; a failed call made again is answered without running it again.
+  The answer is checked before it is shown: a question of several parts
+  with parts left out, a search it says it made when none ran (a web,
+  Wikipedia or PubMed search, or a page read, counts), Python it says ran
+  when none did, and an address, number or email, or a paper cited by its
+  PMID, DOI, PMC or arXiv number, that nothing it read gives, are each
+  sent back once, and anything still unconfirmed is said under the answer.
+  HashCortx and Coder may answer from what they know: their details are
+  held to a source only once they have searched or read something, and a
+  paper they cite always is. HashCortx Lite, the agents you make, and
+  every agent on a model on this computer, run as before.
 
 - **HashCoder does not start a model on a job it cannot hold.** Before a
   run, the app checks that the model can take the instructions, its tools
