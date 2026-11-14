@@ -238,7 +238,8 @@ const LINE_BUDGET = {
   // chat as a version, the others kept (js/chat/versions.js).
   // 6434, down 31: the chat's HashCoder branch, which no screen could reach,
   // is gone with the selection toolbar's Fix button and two bridge entries.
-  'js/app.js': 6434,
+  // 6418, down 16: a PubMed search's papers are read in js/chat/papers.js.
+  'js/app.js': 6418,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

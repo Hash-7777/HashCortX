@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A PubMed search marks papers that have been retracted, and
+  preprints.** An agent searching PubMed is told which papers were
+  withdrawn and are not evidence, and which have not been through peer
+  review, and is asked to say so when it matters. The search is described
+  to the model as medical and life-science papers, preprints among them.
+
 - **A chat is named by the model it talks to.** Once the first answer is
   in, the same model is asked once, with no tools, for a title of a few
   words, shown from the start of the conversation it already has. What

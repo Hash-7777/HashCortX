@@ -5154,23 +5154,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const url = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(query)}&format=json&resultType=core&pageSize=${limit}&sort=CITED+desc`;
       const r = await fetch(url, { referrerPolicy: "no-referrer", signal });
       if (!r.ok) return [];
-      const data = await r.json();
-      const results = (data.resultList?.result || []).map(p => ({
-        title: p.title || "",
-        authors: p.authorString || "",
-        journal: p.journalTitle || p.bookOrReportDetails?.publisher || "",
-        year: p.pubYear || "",
-        abstract: (p.abstractText || "").slice(0, 500),
-        pmid: p.pmid || "",
-        doi: p.doi || "",
-        source: p.source || "",
-        citations: p.citedByCount ?? null,
-        isReview: p.pubTypeList?.pubType?.some?.(t => /review/i.test(t)) || false,
-        url: p.pmid
-          ? `https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/`
-          : (p.doi ? `https://doi.org/${p.doi}` : `https://europepmc.org/article/${p.source || 'MED'}/${p.id || ''}`)
-      })).filter(x => x.title && x.abstract);
-      return results;
+      return window.HCPapers.fromEuropePmc(await r.json());   // each paper as an agent reads it, retracted papers and preprints marked (js/chat/papers.js)
     } catch { return []; }
   }
 
@@ -5364,7 +5348,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       }
     },
     pubmed_search: {
-      description: "PubMed / Europe PMC search. Peer-reviewed medical papers with PMID/DOI.",
+      description: "PubMed / Europe PMC search: medical and life-science papers with PMID/DOI. A paper marked retracted has been withdrawn: never cite it as evidence, and say it was retracted if it matters. A paper marked preprint has not been through peer review: say so when you cite it.",
       parameters: {
         type: "object",
         properties: {
