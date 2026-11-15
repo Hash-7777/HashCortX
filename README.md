@@ -34,10 +34,6 @@ on your keys and your machine. No backend, no telemetry, no account.
 
 <br>
 
-<img src="docs/assets/screenshots/hero.png" alt="HashCortx 3.0 on opening: the app mark, and a start-up list for the runtime, model routing, the interface, the agents and the content security policy" width="100%">
-
-<br>
-
 | | |
 |---|---|
 | **Nothing phones home** | No analytics, no crash reports, no update checks. Every connection is for work you asked for, and [SECURITY.md](docs/SECURITY.md) lists each address. |
@@ -97,6 +93,8 @@ From the Hash ecosystem: your music, your Mac's vital signs and its notices in t
 | **Finance** | Statements, CSV, PDF and XLSX read into figures, every total and chart worked out by the app |
 | **Sandbox** | Agents that inspect untrusted code for malware, prompt injection and suspicious logic |
 
+<img src="docs/assets/screenshots/chat.png" alt="Chats: a question about SQLite journal modes answered by an agent that searched the web and read two pages, a comparison table with a numbered source mark after the sentences each source backs, how many sentences come from what it read, and the two sources it read as cards" width="100%">
+
 Plus **Agents**, nine built-in specialists and a builder for your own, **Split**, one prompt answered by two models side by side, and **Connections**: a business system you connect over MCP (Odoo, GitHub, Stripe and Supabase are ready-made), whose key never reaches a page or a model and whose every change asks you first. [How](docs/SECURITY.md#connected-systems).
 
 ## HashCoder and its harness
@@ -114,9 +112,10 @@ It works on your real files. Every edit is a diff with **Keep** and **Undo**, te
 - **Works in your repository.** Its own git tools read the status and the changes, commit when you ask, signed as your commits are, and make a branch, push or pull only after asking you each time, never forced.
 - **Offers a way on when it stops short.** A run that ends stuck, at its limit or with parts of a several-part request still open offers once more with a hint, or a fresh start on a stronger model you have, from your request and what it already did.
 - **Hands off part of a big task, if you switch it on.** New, and not yet proven on real runs, so it is off until you turn it on: a strong model can start sub-agents on the same model, and any model at full size can when your request asks for them, one that reads and reports or one that changes only the files it is given, and HashCortX checks each report before the model reads it.
+- **Keeps out of your own folders.** It does not list or search your home folder, Desktop, Documents or Downloads unless your request asks it to look there, and a folder it makes for your request becomes the project.
 - **Asks as much as you choose.** Manual asks before every change and is where it starts; Accept edits writes project files freely; Auto adds a fixed list of read, search and check commands.
 
-<img src="docs/assets/screenshots/coder.png" alt="HashCoder: a run on a local model that added validation to a route, shown as a diff with Keep and Undo, with the passing test run said under the answer" width="100%">
+<img src="docs/assets/screenshots/coder.png" alt="HashCoder after a run on a scripted stand-in model: the request to make npm test pass, the run signal across its checking, reading, changing and checking phases, the answer, the edit to range.js with Keep and Undo, and the receipt saying npm test passed" width="100%">
 
 ## Your documents: a local knowledge base (RAG)
 
