@@ -34,13 +34,13 @@ on your keys and your machine. No backend, no telemetry, no account.
 
 <br>
 
-| | |
-|---|---|
-| **Nothing phones home** | No analytics, no crash reports, no update checks. Every connection is for work you asked for, and [SECURITY.md](docs/SECURITY.md) lists each address. |
-| **Every model, side by side** | Twenty-one cloud providers, Ollama, and any local model app that speaks the common chat format, with your own keys. Fully local whenever you want, with a local model kept on your graphics chip and loaded between steps. |
-| **Your documents, searched on your machine** | A local knowledge base (RAG): your PDFs and notes are indexed and searched on this computer, by meaning and by keyword, with the search model built into the app. [How](#your-documents-a-local-knowledge-base-rag). |
-| **An agent that asks first** | Commands, deletions, web pages and anything outside your project wait for your yes. Every file change is a diff you can keep or undo. |
-| **Readable to the last line** | MIT. Vanilla JavaScript and Rust, no bundler, no minified app code. |
+<table>
+<tr><td width="28%" valign="top"><b>Nothing phones home</b></td><td valign="top">No analytics, no crash reports, no update checks. Every connection is for work you asked for, and <a href="docs/SECURITY.md">SECURITY.md</a> lists each address.</td></tr>
+<tr><td width="28%" valign="top"><b>Every model, side by side</b></td><td valign="top">Twenty-one cloud providers, Ollama, and any local model app that speaks the common chat format, with your own keys. Fully local whenever you want, with a local model kept on your graphics chip and loaded between steps.</td></tr>
+<tr><td width="28%" valign="top"><b>Your documents, searched on your machine</b></td><td valign="top">A local knowledge base (RAG): your PDFs and notes are indexed and searched on this computer, by meaning and by keyword, with the search model built into the app. <a href="#your-documents-a-local-knowledge-base-rag">How</a>.</td></tr>
+<tr><td width="28%" valign="top"><b>An agent that asks first</b></td><td valign="top">Commands, deletions, web pages and anything outside your project wait for your yes. Every file change is a diff you can keep or undo.</td></tr>
+<tr><td width="28%" valign="top"><b>Readable to the last line</b></td><td valign="top">MIT. Vanilla JavaScript and Rust, no bundler, no minified app code.</td></tr>
+</table>
 
 > **Version 4.0.0, shows its work.** Every agent shows what it searched and read, marks the source of each sentence and says what nothing it read supports, and HashCoder works in your git repository. [What is new](https://github.com/Hash-7777/HashCortX/releases/tag/v4.0.0).
 
@@ -83,15 +83,15 @@ From the Hash ecosystem: your music, your Mac's vital signs and its notices in t
 
 ## Seven workspaces
 
-| | |
-|---|---|
-| **Chats** | Every provider in one conversation, with projects, attachments, memory, a local knowledge base, a queue for messages sent while a model works, versions of every edited message and regenerated answer, and agents that show what they searched and read, with the source of each sentence marked |
-| **HashCoder** | A coding agent on your real project: file tree, diffs, terminal, Undo |
-| **Agent Swarm** | Teams of agents on any mix of models, built on a canvas or designed from your task |
-| **3D Forge** | Describe a part, get a dimensioned solid in its own colours. STL, OBJ, 3MF and STEP, in millimetres |
-| **ERP** | Describe your business; its agent builds a working app with records, stages and books, exported as one HTML file |
-| **Finance** | Statements, CSV, PDF and XLSX read into figures, every total and chart worked out by the app |
-| **Sandbox** | Agents that inspect untrusted code for malware, prompt injection and suspicious logic |
+<table>
+<tr><td width="28%" valign="top"><b>Chats</b></td><td valign="top">Every provider in one conversation, with projects, attachments, memory, a local knowledge base, a queue for messages sent while a model works, versions of every edited message and regenerated answer, and agents that show what they searched and read, with the source of each sentence marked</td></tr>
+<tr><td width="28%" valign="top"><b>HashCoder</b></td><td valign="top">A coding agent on your real project: file tree, diffs, terminal, Undo</td></tr>
+<tr><td width="28%" valign="top"><b>Agent Swarm</b></td><td valign="top">Teams of agents on any mix of models, built on a canvas or designed from your task</td></tr>
+<tr><td width="28%" valign="top"><b>3D Forge</b></td><td valign="top">Describe a part, get a dimensioned solid in its own colours. STL, OBJ, 3MF and STEP, in millimetres</td></tr>
+<tr><td width="28%" valign="top"><b>ERP</b></td><td valign="top">Describe your business; its agent builds a working app with records, stages and books, exported as one HTML file</td></tr>
+<tr><td width="28%" valign="top"><b>Finance</b></td><td valign="top">Statements, CSV, PDF and XLSX read into figures, every total and chart worked out by the app</td></tr>
+<tr><td width="28%" valign="top"><b>Sandbox</b></td><td valign="top">Agents that inspect untrusted code for malware, prompt injection and suspicious logic</td></tr>
+</table>
 
 <img src="docs/assets/screenshots/chat.png" alt="Chats: a question about SQLite journal modes answered by an agent that searched the web and read two pages, a comparison table with a numbered source mark after the sentences each source backs, how many sentences come from what it read, and the two sources it read as cards" width="100%">
 
