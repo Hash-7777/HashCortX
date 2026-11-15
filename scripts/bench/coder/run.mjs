@@ -95,6 +95,10 @@
 // also writes what the run did, step by step, to that file: its calls, what
 // came back, the notes it was sent and what the person was shown, so a
 // change meant to leave the agent loop as it was can be held to that.
+//
+// --shot <folder> keeps a picture of the HashCoder panel as each run ends,
+// at 1440 by 900 at twice the pixels, named after its task and run, so a
+// picture of the app at work is of a real run.
 // ==============================================================
 import { createServer } from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
@@ -131,6 +135,7 @@ const opt = { models: [], tasks: [], runs: 1, keep: false, selfTest: false, smok
     else if (a === '--rest') opt.rest = Number(next(i++));
     else if (a === '--work') opt.work = next(i++);
     else if (a === '--out') opt.out = next(i++);
+    else if (a === '--shot') opt.shot = path.resolve(next(i++));
     else if (a === '--compare') opt.compare = next(i++);
     else if (a === '--src') opt.src = next(i++);
     else if (a === '--ollama') opt.ollama = next(i++);
@@ -155,7 +160,7 @@ function usage(why) {
     '                                 [--runs <times each task is run, 1 to 5>]\n' +
     '                                 [--minutes <per task>] [--budget <minutes in all>] [--rest <seconds between tasks>]\n' +
     '                                 [--compare <results.json> | last] [--place gpu | cpu] [--src <folder>] [--ollama <local url>]\n' +
-    '                                 [--keep] [--work <folder>]\n' +
+    '                                 [--keep] [--work <folder>] [--shot <folder>]\n' +
     'node scripts/bench/coder/run.mjs --self-test\n' +
     'node scripts/bench/coder/run.mjs --smoke [--out <file>]');
   process.exit(2);
@@ -713,11 +718,37 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   process.on(signal, () => { stopBrowser(); endCommands(); process.exit(130); });
 }
 
+/** Where the browser is asked for a picture, with --shot. */
+const SHOT_PORT = 9451;
+
+/** A picture of the page as it is now, at 1440 by 900 and twice the pixels, written to `file`. Never throws: a run is not lost for a picture. */
+async function shoot(file) {
+  try {
+    const list = await (await fetch(`http://${server.address().address}:${SHOT_PORT}/json`)).json();   // the browser listens where this server does
+    const target = list.find((t) => t.type === 'page');
+    const ws = new WebSocket(target.webSocketDebuggerUrl);
+    await new Promise((r, j) => { ws.addEventListener('open', r); ws.addEventListener('error', j); });
+    let id = 0; const waiting = new Map();
+    ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); if (m.id && waiting.has(m.id)) { waiting.get(m.id)(m); waiting.delete(m.id); } });
+    const send = (method, params = {}) => new Promise((r) => { const n = ++id; waiting.set(n, r); ws.send(JSON.stringify({ id: n, method, params })); });
+    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 2, mobile: false });
+    await new Promise((r) => setTimeout(r, 1200));
+    const shot = await send('Page.captureScreenshot', { format: 'png' });
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, Buffer.from(shot.result.data, 'base64'));
+    ws.close();
+    if (!opt.quiet) console.log(`      picture: ${file}`);
+  } catch (e) {
+    console.log(`      no picture: ${e && e.message ? e.message : e}`);
+  }
+}
+
 function startBrowser(port, profile) {
   chrome = spawn(CHROME, [
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
     '--disable-extensions', '--disable-background-networking', '--disable-sync', '--mute-audio',
     `--user-data-dir=${profile}`,
+    ...(opt.shot ? [`--remote-debugging-port=${SHOT_PORT}`, '--window-size=1440,900'] : []),
     // Nothing but this server, the local model, and the providers whose keys were given.
     '--proxy-server=127.0.0.1:9', `--proxy-bypass-list=${['127.0.0.1', 'localhost', ...CLOUD_HOSTS].join(';')}`,
     `http://127.0.0.1:${port}/`,
@@ -894,6 +925,7 @@ async function runTask(port, model, task, n) {
     startBrowser(port, profile);
   });
   onResult = null;
+  if (opt.shot) await shoot(path.join(opt.shot, `${task.id}-${n}.png`));   // before the browser is ended
   stopBrowser();
   endCommands();
   if (cloudModels.length) fs.rmSync(profile, { recursive: true, force: true });   // the keys were in it
