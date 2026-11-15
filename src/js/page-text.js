@@ -103,5 +103,35 @@
     );
   }
 
-  window.HCPageText = { stripHtml, windowOf, continuationNote, DEFAULT_LIMIT, PASSIVE_LIMIT };
+  /**
+   * Sites that show their pages only to someone signed in, and turn an app
+   * away. Reading one is not tried around: the note says what is true and
+   * the two honest ways to the same facts.
+   */
+  const SIGNED_IN = [
+    { host: /(^|\.)linkedin\.com$/i, name: 'This site', save: ' (on a profile there: its More button, then Save to PDF)' },
+    { host: /(^|\.)(facebook|instagram|threads)\.(com|net)$/i, name: 'This site', save: '' },
+    { host: /(^|\.)(x|twitter|tiktok)\.com$/i, name: 'This site', save: '' },
+  ];
+
+  /**
+   * What a model is told when a page could not be read: the reason the
+   * fetch gave (`refusal` { refused, status }), and for a site that shows
+   * pages only to someone signed in, what to do instead. Never a guess at
+   * what the page says.
+   */
+  function unreadNote(url, refusal) {
+    let host = '';
+    try { host = new URL(String(url)).hostname; } catch { /* not an address */ }
+    const wall = SIGNED_IN.find((w) => w.host.test(host));
+    if (wall) {
+      return `${url} could not be read: ${wall.name} shows its pages only to people signed in, and turns an app away. Do not guess what it says. ` +
+        `Search the web for the name and words from the address: a result may carry a public summary of it; say it is a summary, and use it only when the result's address is this one. ` +
+        `Then ask the person to attach the page as a PDF${wall.save} or as screenshots, and work from what they attach.`;
+    }
+    const why = refusal && refusal.refused ? ` The site's answer: ${String(refusal.refused).replace(/\s+/g, ' ').slice(0, 160)}` : '';
+    return `${url} could not be read: it may not exist, may refuse to be read by an app, or may not be a web page.${why} Try the site's home page, or another result.`;
+  }
+
+  window.HCPageText = { stripHtml, windowOf, continuationNote, unreadNote, SIGNED_IN, DEFAULT_LIMIT, PASSIVE_LIMIT };
 })();

@@ -53,6 +53,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A page that cannot be read says why, and a site that needs you signed
+  in says what to do instead.** When a site turns HashCoder away, the model
+  is now handed the site's own answer rather than a guess at the cause. For
+  professional and social networks that show their pages only to people
+  signed in, both chat and HashCoder tell the model not to guess what the
+  page says: it may use a search result's public summary, said to be one
+  and only when its address is the same page, and it asks you to attach
+  the page as a PDF (a profile's Save to PDF) or as screenshots.
+
 - **A long HashCoder run's signal stays readable.** On a run of many
   phases the phase names above the line no longer run into each other: a
   name that would gives way, and where they crowd the names shown are

@@ -1044,7 +1044,7 @@
         try {
           // The page as it came, read through the same checked reader as chat's (app.js fetchUrl), so what it holds besides its words can be given too (js/page-facts.js).
           const page = window._H?.fetchPage ? await window._H.fetchPage(url) : null;
-          if (!page) return JSON.stringify({ error: `${url} could not be read: it may not exist, may refuse to be read by an app, or may not be a web page. Try the site's home page, or another result.` });
+          if (!page || page.refused != null) return JSON.stringify({ error: window.HCPageText?.unreadNote ? window.HCPageText.unreadNote(url, page) : `${url} could not be read.` });   // why, and for a site that shows pages only to someone signed in, the honest way round (js/page-text.js)
           const T = window.HCPageText, F = window.HCPageFacts;
           const win = T.windowOf(T.stripHtml(page.html), p.offset);
           const first = !win.offset && !!F;

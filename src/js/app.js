@@ -5082,7 +5082,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         const out = await HC.invoke("net_fetch_text", { url });
         if (out?.ok) return raw ? { html: String(out.text || ''), url: out.finalUrl || url } : HCPageText.stripHtml(out.text);
         console.warn("[fetch_url] refused:", out?.reason || "the page could not be read");
-        return null;
+        return raw ? { refused: String(out?.reason || ''), status: Number(out?.status) || 0 } : null;   // HashCoder says why (js/page-text.js unreadNote)
       } catch (e) {
         // A failed read is a refusal, never permission.
         console.warn("[fetch_url] failed:", e?.message || e);
@@ -5297,7 +5297,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         } finally {
           job?.done();
         }
-        if (!text) return { error: "Could not fetch (timeout, blocked private IP, or non-text page)." };
+        if (!text) return { error: HCPageText.unreadNote(url) };   // why it may be, and for a site that shows pages only to someone signed in, the honest way round
         // The knowledge base gets the whole page; the model gets a window of it
         // and is told where to continue, having previously got the first 3,000
         // characters with nothing saying the rest existed.

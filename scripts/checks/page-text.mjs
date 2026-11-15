@@ -19,7 +19,7 @@ import vm from 'node:vm';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(here, '..', '..', 'src', 'js', 'page-text.js'), 'utf8');
-const sandbox = { console };
+const sandbox = { console, URL };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(src, sandbox, { filename: 'page-text.js' });
@@ -120,6 +120,19 @@ console.log('\nThe default window is worth the budget it spends:');
   eq('a page reads 15,000 characters at a time', P.DEFAULT_LIMIT, 15000);
   eq('a page nobody asked for reads less', P.PASSIVE_LIMIT, 6000);
   check('and the passive window is the smaller of the two', P.PASSIVE_LIMIT < P.DEFAULT_LIMIT);
+}
+
+console.log('\nA page that could not be read:');
+{
+  const li = P.unreadNote('https://www.linkedin.com/in/someone-made-up/', { refused: 'that page answered 999.', status: 999 });
+  check('a profile on a professional network: it says the site shows pages only to people signed in, and not to guess', /This site shows its pages only to people signed in/.test(li) && /Do not guess/.test(li), li);
+  check('...the two honest ways: a search result\'s public summary, said to be one, and the person attaching it as a PDF or screenshots', /Search the web/.test(li) && /say it is a summary/.test(li) && /Save to PDF/.test(li) && /screenshots/.test(li));
+  check('...on a country subdomain too', /signed in/.test(P.unreadNote('https://eg.linkedin.com/in/x', null)));
+  check('other sites that show pages only to someone signed in are named too', ['https://www.instagram.com/a', 'https://x.com/a', 'https://www.facebook.com/a'].every((u) => /signed in/.test(P.unreadNote(u))));
+  const other = P.unreadNote('https://gone.example/', { refused: 'that page answered 404.', status: 404 });
+  check('any other page: what may be wrong, the site\'s own answer, and what to try', /could not be read/.test(other) && /The site's answer: that page answered 404\./.test(other) && /home page/.test(other) && !/signed in/.test(other), other);
+  check('...with no answer given, no empty line for one', !/site's answer/.test(P.unreadNote('https://gone.example/')));
+  check('a host that only ends in the name is not taken for it', !/signed in/.test(P.unreadNote('https://notlinkedin.com/in/a')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/page-text.js)`);
