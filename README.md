@@ -24,7 +24,7 @@ on your keys and your machine. No backend, no telemetry, no account.
 <img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-2d333b?style=flat-square&logo=apple&logoColor=c9d1d9">
 <img alt="Windows 10" src="https://img.shields.io/badge/Windows%2010-2d333b?style=flat-square&logo=windows&logoColor=c9d1d9">
 <img alt="Built with Tauri v2" src="https://img.shields.io/badge/Tauri%20v2-2d333b?style=flat-square&logo=tauri&logoColor=c9d1d9">
-<img alt="Version 4.0.0" src="https://img.shields.io/badge/v4.0.0-2d333b?style=flat-square">
+<img alt="Version 4.5.0" src="https://img.shields.io/badge/v4.5.0-2d333b?style=flat-square">
 
 <br>
 
@@ -42,7 +42,7 @@ on your keys and your machine. No backend, no telemetry, no account.
 <tr><td width="28%" valign="top"><b>Readable to the last line</b></td><td valign="top">MIT. Vanilla JavaScript and Rust, no bundler, no minified app code.</td></tr>
 </table>
 
-> **Version 4.0.0, shows its work.** Every agent shows what it searched and read, marks the source of each sentence and says what nothing it read supports, and HashCoder works in your git repository. [What is new](https://github.com/Hash-7777/HashCortX/releases/tag/v4.0.0).
+> **Version 4.5.0, kept whole and kept private.** HashCoder keeps every conversation whole and never looks through your own folders unless you ask, a source in a reply opens the page it came from, and chat replies are formatted as they are written. [What is new](https://github.com/Hash-7777/HashCortX/releases/tag/v4.5.0).
 
 ## See it run
 

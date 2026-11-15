@@ -8,6 +8,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [4.5.0] — 2026-11-15
+
+Kept whole, kept private. HashCoder keeps every conversation whole and
+never looks through your own folders unless you ask, a folder it makes for
+you becomes the project, and a source in a reply opens the page it came
+from. Chat replies are formatted as they are written, pictures come from
+more models, and every model is told which model it is.
+
 ### Added
 
 - **Ask for sub-agents in your request and HashCoder starts them.** With
@@ -4065,7 +4073,8 @@ First public release. macOS Apple Silicon, unsigned, 8.9 MB DMG.
 
 Development history predating the first public release was not kept as a changelog. The repository history begins on 2026-05-16.
 
-[Unreleased]: https://github.com/Hash-7777/HashCortX/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/Hash-7777/HashCortX/compare/v4.5.0...HEAD
+[4.5.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v4.5.0
 [4.0.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v4.0.0
 [3.3.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v3.3.0
 [3.0.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v3.0.0
