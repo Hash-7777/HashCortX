@@ -1,6 +1,6 @@
 ══════════════════════════════════════════════════════════════
   HashCortx — Workspaces Guide
-  v4.0.0  ·  github.com/Hash-7777/HashCortX
+  v4.5.0  ·  github.com/Hash-7777/HashCortX
 ══════════════════════════════════════════════════════════════
 
 HashCortx has seven workspaces, plus Agents, Split and
