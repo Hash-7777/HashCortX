@@ -207,7 +207,7 @@ Checkpoints hold file contents from your project, in your home directory, in pla
 
 A copy is not kept for good when a change goes unanswered. Each conversation keeps which changes it made, and opening it again from Sessions lists those still waiting, so an Undo outlives the run that offered it; a new conversation lists none. Anything still unanswered a week later is deleted (`MAX_CHECKPOINT_AGE_DAYS` in `src-tauri/src/commands/checkpoint.rs`).
 
-HashCoder's saved session carries no file contents: the undo history on disk is the record. Of a picture attached to a request it keeps only a small preview, so the conversation still shows it, in the app's own storage and within a fixed budget (`src/js/code/attach.js`); the picture sent to the model is not kept.
+HashCoder keeps its open conversation and its Sessions as the model was sent them, so they hold the text of the files it read and wrote and of the pages it read. They are kept in the app's own IndexedDB storage, in the app's data folder on this computer, never sent anywhere and never in the storage that holds provider keys (`src/js/code/store.js`); deleting a session or Clear all removes it. The undo history on disk is the record of what changed. Of a picture attached to a request it keeps only a small preview, so the conversation still shows it, in the app's own storage and within a fixed budget (`src/js/code/attach.js`); the picture sent to the model is not kept.
 
 **Links are followed to their destination before the rule is applied.** A path containing `..` is refused outright, and a single file operation resolves symlinks and checks where they actually lead. That includes a file that does not exist yet, which is judged by where it would land.
 

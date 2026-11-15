@@ -41,7 +41,7 @@ ok('the button says Sessions in words, beside New chat, and the panel it opens i
 ok('...and the old clock-only button is gone from the code that wires it', /\$\('cdrSessionsBtn'\)/.test(mode) && !/cdrHistoryBtn/.test(mode));
 ok('a launch keeps the last conversation in Sessions and starts a new one, with the project still open',
   /function restoreCoderState\(\) \{[\s\S]*?syncProjectLabel\(\);[\s\S]*?conversationMsgs = state\.chatHistory; saveCurrentSession\(\); conversationMsgs = \[\];[^\n]*saveCoderState\(\); \}/.test(mode) && !/conversationMsgs = state\.chatHistory;\s+renderConversation\(\)/.test(mode));
-ok('going out of HashCoder and back in does not restore anything: the second mount returns before it', /if \(setUp\) \{ syncTerminalPrompt\(\); updateCoderStatus\(\); return; \}/.test(mode) && mode.indexOf('if (setUp) {') < mode.indexOf('restoreCoderState();'));
+ok('going out of HashCoder and back in does not restore anything: the second mount returns before it', /if \(setUp\) \{ syncTerminalPrompt\(\); updateCoderStatus\(\); return; \}/.test(mode) && mode.indexOf('if (setUp) {') < mode.indexOf('.then(restoreCoderState);'));
 ok('the sessions button is quiet until it is the open one, like New chat in the same bar', /\.cdr-sessions-btn \{ border-color: transparent; \}/.test(css) && /\.cdr-sessions-btn\[aria-expanded="true"\]/.test(css));
 
 console.log('\nThe tools: a drawn mark and its word each, in one group:');

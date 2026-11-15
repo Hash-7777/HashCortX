@@ -628,7 +628,7 @@ const DRIVER = `<script>
         await wait(3000);
       }
       result.seconds = Math.round((performance.now() - t0) / 100) / 10;
-      const state = JSON.parse(localStorage.getItem('hashui_coder_state') || '{}');
+      const state = JSON.parse((window.HCCodeStore || localStorage).getItem('hashui_coder_state') || '{}');
       result.history = Array.isArray(state.chatHistory) ? state.chatHistory : [];
       const bubbles = [...document.querySelectorAll('#cdrMessages .cdr-msg.assistant')];
       result.lastBubble = bubbles.length ? String(bubbles[bubbles.length - 1].innerText || '').slice(-4000) : '';

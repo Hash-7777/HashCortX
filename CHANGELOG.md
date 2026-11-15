@@ -53,6 +53,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder keeps a long conversation whole.** The open conversation
+  and Sessions were kept in a small store shared with the rest of the app,
+  and a run that read and wrote whole files filled it: every later save was
+  refused in silence, so a conversation reopened from Sessions, or brought
+  back on the next launch, could hold only its first exchange. They are now
+  kept in the app's IndexedDB storage, which has room for them, and what
+  was saved before is moved across on the first start. docs/SECURITY.md now
+  says plainly that a saved conversation holds the text of the files and
+  pages it read and wrote.
+
 - **A source opens the page it came from.** In chat, a numbered source, its
   preview card and the numbered chip in the answer now open the page in
   your browser, with a click or Enter. In HashCoder, a web search's step

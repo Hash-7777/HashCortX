@@ -162,12 +162,12 @@
           changes: sharedState.changeIds || [], queued: (coderQueue?.items || []).map((m) => m.text).filter(Boolean),   // the changes this conversation made, shown with it when it is opened again; the words of messages still waiting (js/queue.js), not what was attached to them
           ts: Date.now(),
         };
-        localStorage.setItem(STATE_KEY, JSON.stringify(state));
+        window.HCCodeStore.setItem(STATE_KEY, JSON.stringify(state));   // IndexedDB, not localStorage, which a long run fills (js/code/store.js)
       } catch {}
     }
     function restoreCoderState() {
       try {
-        const raw = localStorage.getItem(STATE_KEY);
+        const raw = window.HCCodeStore.getItem(STATE_KEY);
         if (!raw) return;
         const state = JSON.parse(raw);
         if (!state) return; if (Array.isArray(state.queued) && state.queued.length) { const box = $('cdrTaskInput'); if (box && !box.value.trim()) { box.value = state.queued.join('\n\n'); box.dispatchEvent(new Event('input', { bubbles: true })); } }   // messages still waiting when the app closed come back to the box
@@ -233,7 +233,7 @@
       wireWelcome();
       // Files and pictures attached to the next request — js/code/attach.js.
       window.HCCodeAttach?.mount({ panel: $('coder-mode-wrap'), input: $('cdrTaskInput'), button: $('cdrAttachBtn'), picker: $('cdrAttachInput'), list: $('cdrAttachList'), model: () => coderModel || window._H?.selectedModel?.() || '' });
-      restoreCoderState();   // a change waiting to be kept or undone is shown with the session that made it (restoreSession), never in a new one
+      window.HCCodeStore.ready().then(restoreCoderState);   // once what was kept is read (js/code/store.js); a change waiting to be kept or undone is shown with the session that made it (restoreSession), never in a new one
       syncTerminalPrompt();
       updateCoderStatus();
     }
@@ -321,7 +321,7 @@
       document.addEventListener('click', () => $('cdrTracePanel')?.classList.remove('open'));
       if (exportBtn)         exportBtn.addEventListener('click', exportChat);
       if (sessionsClearAll)  sessionsClearAll.addEventListener('click', async () => {
-        try { localStorage.removeItem(SESSIONS_KEY); } catch {}
+        window.HCCodeStore.removeItem(SESSIONS_KEY);
         renderSessions();
       });
       if (sessionsSearchEl)  sessionsSearchEl.addEventListener('input', () => renderSessions(sessionsSearchEl.value));
@@ -915,10 +915,10 @@
 
     // ── Sessions (past chats) ─────────────────────────────────
     function loadSessions() {
-      try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch { return []; }
+      try { return JSON.parse(window.HCCodeStore.getItem(SESSIONS_KEY) || '[]'); } catch { return []; }
     }
     function saveSessions(sessions) {
-      try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions.slice(0, 50))); } catch {}
+      try { window.HCCodeStore.setItem(SESSIONS_KEY, JSON.stringify(sessions.slice(0, 50))); } catch {}
     }
 
     // Cap session names to 3 words max (chat-mode pattern: enforceTwoWordName clone)
