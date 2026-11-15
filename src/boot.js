@@ -110,6 +110,7 @@
     '/js/run-signal.js',
     '/js/code/steps.js',
     '/js/code/store.js',
+    '/js/code/private-places.js',
     '/js/code/preview.js',
     '/js/code/rewind.js',
     '/js/code/host-tools.js',

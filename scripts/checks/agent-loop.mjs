@@ -29,7 +29,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { console, performance, setTimeout, clearTimeout, DOMException };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['fences.js', 'text-safety.js', 'chat/sources.js', 'code/delegate.js', 'code/command-changes.js', 'run-ledger.js', 'model-limits.js', 'agent-context.js', 'code/host-tools.js', 'code/translate.js', 'code/asks.js', 'code/added.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
+for (const f of ['fences.js', 'text-safety.js', 'chat/sources.js', 'code/delegate.js', 'code/command-changes.js', 'code/private-places.js', 'run-ledger.js', 'model-limits.js', 'agent-context.js', 'code/host-tools.js', 'code/translate.js', 'code/asks.js', 'code/added.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
   vm.runInContext(src('js', ...f.split('/')), sandbox, { filename: f });
 }
 const S = sandbox.HCAgentShape;
@@ -144,6 +144,16 @@ console.log('\nA folder the request asked for, made with no project open:');
   ok('...never when a project is already open', open.length === 0);
   const refused = await runWith({ root: null, openFolder: async () => false, script: mk(['/home/sam/Desktop/x']) });
   ok('...and a folder the app would not open is not said to be open', !/opened/.test(refused.messages.find((m) => m.role === 'tool')?.content || ''));
+}
+
+console.log('\nThe person\'s own folders, not looked through unasked:');
+{
+  const r = await runWith({ root: null, request: 'make a folder on the desktop called harbour site', script: (m, n) => (n === 1 ? turnOf(callOf('shell_run', { command: 'ls', args: ['-la', '/home/sam/Desktop'] })) : words('Made it.')) });
+  const result = r.messages.find((m) => m.role === 'tool');
+  ok('a listing of the whole Desktop is answered without running, saying how to do the task instead', !r.P.ran.length && /names of their private files/.test(result && result.content), json({ ran: r.P.ran, said: result && result.content }));
+  const asked = await runWith({ request: 'list all the files on my desktop', script: (m, n) => (n === 1 ? turnOf(callOf('shell_run', { command: 'ls', args: ['/home/sam/Desktop'] })) : words('Listed.')) });
+  const back = (asked.messages.find((m) => m.role === 'tool') || {}).content || '';
+  ok('...and is not refused when the request asks for it', !/private files/.test(back), back);
 }
 
 console.log('\nA change and its check in one call (then_run):');

@@ -53,6 +53,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder no longer looks through your own folders unasked.** Asked to
+  make something on the Desktop, a model would list the whole Desktop or
+  your home folder first, sending the names of your files for a task that
+  needed none of them. Listing or searching your home folder, Desktop,
+  Documents, Downloads and the like is now answered without running unless
+  your request asks to look there, such as "list the files on my desktop",
+  or you opened that folder as the project.
+
 - **A folder HashCoder makes for your request becomes the project.** With
   no project open, every search and read in a new folder it had just made
   waited for you to press Allow, which showed as slow steps. When a run
