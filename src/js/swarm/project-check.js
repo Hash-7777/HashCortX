@@ -367,6 +367,11 @@
         if (wanted.size) add('broken', name, `${name} looks for ${[...wanted].slice(0, MAX_NAMED).map((i) => `#${i}`).join(', ')}, which no page has`);
       }
 
+      // A link to a place on a page that no page has: the menu item or button goes nowhere.
+      const nowhere = new Set();
+      for (const m of pages.matchAll(/\bhref\s*=\s*["']#([^"'\s]+)["']/gi)) if (!ids.has(m[1]) && !/^(?:top|0)$/i.test(m[1])) nowhere.add(m[1]);
+      if (nowhere.size) add('broken', 'pages', `a link goes to ${[...nowhere].slice(0, MAX_NAMED).map((i) => `#${i}`).join(', ')}, which no page has, so pressing it does nothing`, true);
+
       // A class the markup leans on that nothing styles.
       const styled = new Set();
       for (const [n, f] of files) {

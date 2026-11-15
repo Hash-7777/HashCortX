@@ -15,6 +15,8 @@
 //   pwd, cd alone, Get-Location                  the folder commands run in
 //   which, where, Get-Command                    the programs the app found
 //                                                (js/code/host-tools.js)
+//   node -e, python -c and the like, when the    not run: the app checks a
+//   script only reads                            site it changed itself
 //
 // Only when every word is one the table knows: a flag it does not, a pipe,
 // a redirect or a second command, and the command runs exactly as before.
@@ -214,7 +216,22 @@
    * here; null for anything else, which runs as a command. `o`: os, here
    * (the folder it runs in), programs (js/code/host-tools.js ask).
    */
+  /** A one-off script given in a command (node -e, python -c and the like) that only reads: its text, else ''. */
+  const INLINE = { node: ['-e', '--eval', '-p', '--print'], deno: ['eval'], python: ['-c'], python3: ['-c'], ruby: ['-e'], perl: ['-e', '-E'] };
+  const ACTS = /writeFile|appendFile|createWriteStream|unlink|\brm(?:Sync)?\(|rmdir|mkdir|rename|copyFile|truncate|child_process|spawn|exec|fetch\(|https?[.:]|\bnet\.|socket|\.write\(|open\([^)]*["'][wax+]|subprocess|os\.system|os\.remove|shutil|requests|urllib|`|system\(|File\.write|IO\.write/i;
+  function readingScript(command, args) {
+    const prog = progOf(String(command || '').trim()), a = Array.isArray(args) ? args.map(String) : [];
+    if (!INLINE[prog] || a.length < 2 || !INLINE[prog].includes(a[0])) return '';
+    const text = a.slice(1).join(' ');
+    return text.trim() && !ACTS.test(text) ? text : '';
+  }
+  /** What a model is told instead of running such a script. */
+  const NO_SCRIPT = 'Not run: a one-off script that only reads files, written to check the work, is not needed, and each one would put a question to the person. ' +
+    'For a site, the app reads what the run changed before it ends, as a browser would, and hands back what will not work: a file a page points at that is not there, a link to a place no page has, text left unfinished, a class a script switches on that nothing styles, and code that does not parse. ' +
+    'To look at a file, call read_file; to find text, grep_code; to check a project, run its own test or build command.';
+
   function toTool(command, args, o = {}) {
+    if (readingScript(command, args)) return { answer: NO_SCRIPT };   // a throwaway checking script: the app checks a site itself (js/code/site.js)
     const w = wordsOf(command, args);
     if (!w) return null;
     const prog = progOf(w[0]), rest = w.slice(1), windows = String(o.os || '').toLowerCase() === 'windows';
@@ -249,5 +266,5 @@
   /** Whether a tool result is one of these answers, and so no command ran. */
   const isAnswer = (text) => String(text == null ? '' : text).startsWith(ANSWERED);
 
-  window.HCCodeTranslate = { toTool, said, isAnswer };
+  window.HCCodeTranslate = { readingScript, NO_SCRIPT, toTool, said, isAnswer };
 })();

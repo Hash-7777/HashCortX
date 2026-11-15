@@ -76,6 +76,16 @@ ok('the answer says the app gave it, with no program started, and which tool to 
 
 console.log('\nWhere it is wired:');
 const loop = src('js', 'agent-loop.js');
+console.log('\nOne-off scripts that only read, written to check the work:');
+{
+  const check = "const fs=require('fs');const h=fs.readFileSync('index.html','utf8');const ids=[...h.matchAll(/id=\"([^\"]+)\"/g)].map(m=>m[1]);console.log(ids.length)";
+  ok('node -e that only reads is answered without running, saying what the app checks itself and what to call instead', T.toTool('node', ['-e', check])?.answer === T.NO_SCRIPT && /a link to a place no page has/.test(T.NO_SCRIPT) && /read_file/.test(T.NO_SCRIPT));
+  ok('...and python -c, python3 -c, node -p and a program named by its whole path', !!T.toTool('python3', ['-c', "print(open('index.html').read().count('id='))"])?.answer && !!T.toTool('python', ['-c', 'print(1)'])?.answer && !!T.toTool('node', ['-p', '1+1'])?.answer && !!T.toTool('/usr/local/bin/node', ['-e', 'console.log(1)'])?.answer);
+  const acts = ["require('fs').writeFileSync('a.txt','x')", "require('child_process').execSync('ls')", "fetch('https://a.example')", "open('a.txt','w').write('x')", "import shutil; shutil.rmtree('x')", "require('fs').rmSync('x')"];
+  ok('a script that writes, removes, starts a program or reaches the network runs as a command, asked about as one', acts.every((x) => T.toTool(x.startsWith('import') || x.startsWith('open') ? 'python3' : 'node', [x.startsWith('import') || x.startsWith('open') ? '-c' : '-e', x]) === null));
+  ok('a script run from a file, and node with no script, run as before', T.readingScript('node', ['check.js']) === '' && T.readingScript('node', ['-e']) === '' && T.readingScript('npm', ['-e', 'x']) === '');
+}
+
 ok('a shell call the app can answer runs its own tool instead, through the same tool and its guard, with the place read from where the command runs', /const asTool = call\.name === 'shell_run' && !early && window\.HCCodeTranslate \? window\.HCCodeTranslate\.toTool\(/.test(loop) && /find\(t => t\.name === \(asTool\?\.tool \|\| call\.name\)\)/.test(loop) && /window\.HCCodePaths\.argsFromRoot\(asTool\.arguments, /.test(loop));
 ok('...and is never recorded as a command that ran', /else if \(call\.name === 'shell_run' && !asTool\)/.test(loop) && /HCCodeTranslate\?\.isAnswer/.test(src('js', 'code', 'rewind.js')) && /if \(!r \|\| typeof r\.code !== 'number'\) continue;/.test(src('js', 'run-ledger.js')));
 const boot = src('boot.js');

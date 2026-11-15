@@ -197,5 +197,13 @@ console.log('\nThe standard a site is held to:');
   ok('the Swarm is not asked to repair any of it', !C.repairNote(look({ 'index.html': page(two), 'style.css': REVEAL_CSS, 'app.js': REVEAL_JS })).includes('starts hidden'));
 }
 
+console.log('\nLinks to a place on a page:');
+{
+  const page = (body) => set({ 'index.html': `<!doctype html><html><head><link rel="stylesheet" href="style.css"></head><body>${body}${'<p>words</p>'.repeat(20)}</body></html>`, 'style.css': 'body { margin: 0; color: #222; } .nav { display: flex; }'.repeat(3) });
+  const found = (body) => C.inspect(page(body)).filter((f) => /no page has, so pressing it/.test(f.what));
+  ok('a link to a place no page has is said, as something that will not work', found('<a href="#work">Work</a><section id="about"></section>').length === 1 && /#work/.test(found('<a href="#work">Work</a>')[0].what) && found('<a href="#work">Work</a>')[0].level === 'broken');
+  ok('...not when the place is there, nor for the top of the page', found('<a href="#about">About</a><section id="about"></section><a href="#top">Top</a><a href="#">x</a>').length === 0);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/project-check.js)`);
 process.exit(fail ? 1 : 0);

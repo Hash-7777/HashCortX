@@ -53,6 +53,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **No more throwaway checking scripts in HashCoder.** A model would check
+  its own work with long one-line scripts (`node -e`, `python -c`) that
+  only read files, each one a question for you. Such a script is now
+  answered without running, and the model is told what the app already
+  checks in a site it changed and which tool to use instead. The app's own
+  site check now also finds a link to a place on a page that no page has,
+  which is what those scripts most often looked for. A script that writes,
+  removes, starts a program or reaches the network is still asked about as
+  a command.
+
 - **HashCoder no longer looks through your own folders unasked.** Asked to
   make something on the Desktop, a model would list the whole Desktop or
   your home folder first, sending the names of your files for a task that
