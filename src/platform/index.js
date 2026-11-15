@@ -76,6 +76,16 @@ HC.externalLink = (href, base) => {
   if ((url.protocol === "http:" || url.protocol === "https:") && url.origin === new URL(base).origin) return null;
   return url.href;
 };
+// A page address opened in the system browser for something that is not a
+// link, such as a numbered source in a chat reply (js/chat/view.js): the same
+// check as a link's, and in a plain browser a new tab.
+HC.openExternal = (href) => {
+  const url = HC.externalLink(href, location.href);
+  if (!url) return false;
+  if (HC.isTauri) HC.invoke("plugin:opener|open_url", { url }).catch(() => {});
+  else window.open(url, "_blank", "noopener");
+  return true;
+};
 if (HC.isTauri) {
   // A click, or the middle button, which in a browser opens a link in a new
   // tab and in the window did nothing.

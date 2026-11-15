@@ -89,5 +89,18 @@ ok('a step running counts its time from when it began', /class="cdr-step-time cd
   ok('the running dot pulses by size alone, and stops for a person who asks for less motion', /@keyframes cdr-node \{ 50% \{ transform: scale\(\.7\); opacity: \.55; \} \}/.test(css) && /prefers-reduced-motion: reduce\) \{ \.cdr-steps-list > \.cdr-step--running::before \{ animation: none; \} \}/.test(css));
 }
 
+console.log('\nSources a step can open:');
+{
+  const search = JSON.stringify({ query: 'q', source: 'tavily', results: { answer: 'a', results: [{ title: 'First page', url: 'https://one.example/a' }, { title: 'Second', url: 'https://two.example/' }, { title: 'Again', url: 'https://one.example/a' }, { title: 'Bad', url: 'javascript:void(0)' }] } });
+  ok('a search\'s results, in either shape, each once, web addresses only', JSON.stringify(S.sourcesOf('web_search', search)) === JSON.stringify([{ url: 'https://one.example/a', title: 'First page' }, { url: 'https://two.example/', title: 'Second' }]) && S.sourcesOf('web_search', JSON.stringify({ results: [{ title: 'D', url: 'https://d.example/' }] })).length === 1);
+  ok('a page read gives its own address', S.sourcesOf('fetch_url', JSON.stringify({ url: 'https://page.example/x', title: 'Page', text: 'words' }))[0].url === 'https://page.example/x');
+  ok('an error, words that are not that shape, or another tool give none', S.sourcesOf('fetch_url', JSON.stringify({ error: 'could not be read' })).length === 0 && S.sourcesOf('web_search', 'not json').length === 0 && S.sourcesOf('read_file', search).length === 0);
+  const steps = src('js', 'code', 'steps.js'), mode = src('modes', 'code', 'mode.js'), css = src('modes', 'code', 'mode.css');
+  ok('they are links under the step\'s result, which the app opens in the browser', /<a class="cdr-source" href="\$\{esc\(r\.url\)\}" target="_blank" rel="noopener noreferrer"/.test(steps) && /body\.prepend\(box\)/.test(steps));
+  ok('a page read is a link in its step\'s own line too', /<a class="cdr-step-object cdr-step-link" href="\$\{esc\(webAddress\(href\)\)\}"/.test(steps) && /tool: name, href: name === 'fetch_url' \? args\?\.url : '',/.test(mode));
+  ok('HashCoder adds them when a step ends well', /if \(ok\) window\.HCCodeSteps\.sources\?\.\(el, el\.dataset\.tool, text\);/.test(mode));
+  ok('and they look like links', /\.cdr-step-link \{ text-decoration: underline;/.test(css) && /\.cdr-source:hover, \.cdr-source:focus-visible/.test(css));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/steps.js)`);
 process.exit(fail ? 1 : 0);

@@ -123,6 +123,7 @@
       if (reads.querySelector(`[data-i="${i}"]`) || !(s.excerpt || s.title)) return;
       const card = document.createElement('article');
       card.className = 'cv-card'; card.dataset.i = String(i);
+      if (s.url) { card.dataset.url = s.url; card.tabIndex = 0; card.setAttribute('role', 'link'); card.title = `Open ${s.url} in the browser`; }   // opened by a click or Enter (open, below)
       card.innerHTML = `${thumb}<div class="cv-card-t"><div class="cv-site">${icon('globe')}<span>${esc(s.site || s.label)}</span></div><h4>${esc(s.title || s.label)}</h4><p>${esc(s.excerpt)}</p></div>`;
       reads.appendChild(card); show(card);
     });
@@ -176,7 +177,7 @@
       parts.push(`<div class="cv-ground"><span class="cv-ground-l">${icon('ground')}Grounding</span><span class="cv-segs" aria-hidden="true">${Array.from({ length: Math.min(total, 12) }, (_, i) => `<i class="${i < Math.round((sourced / total) * Math.min(total, 12)) ? '' : 'none'}"></i>`).join('')}</span><span>${sourced} of ${total} ${total === 1 ? 'sentence comes' : 'sentences come'} from what it read</span></div>`);
     }
     if (rows.includes('sources')) {
-      parts.push(`<div class="cv-sources">${m.sources.filter((s) => s.n).sort((a, b) => a.n - b.n).map((s) => `<div class="cv-source" data-n="${s.n}" tabindex="0"><span class="cv-num">${s.n}</span><svg class="cv-thumb cv-thumb-s" viewBox="0 0 34 42" aria-hidden="true"><rect x="1" y="1" width="32" height="40" rx="4"/><rect class="cv-thumb-bar" x="1.5" y="1.5" width="31" height="7" rx="3.5"/><path d="M6 15h20M6 20h22M6 25h14M6 30h18"/></svg><span class="cv-source-t"><span class="cv-site">${icon('globe')}<span>${esc(s.site || s.label)}</span></span><span class="cv-title">${esc(s.title || s.label)}</span></span></div>`).join('')}</div>`);
+      parts.push(`<div class="cv-sources">${m.sources.filter((s) => s.n).sort((a, b) => a.n - b.n).map((s) => `<div class="cv-source" data-n="${s.n}" tabindex="0"${s.url ? ` data-url="${esc(s.url)}" role="link" title="Open ${esc(s.url)} in the browser"` : ''}><span class="cv-num">${s.n}</span><svg class="cv-thumb cv-thumb-s" viewBox="0 0 34 42" aria-hidden="true"><rect x="1" y="1" width="32" height="40" rx="4"/><rect class="cv-thumb-bar" x="1.5" y="1.5" width="31" height="7" rx="3.5"/><path d="M6 15h20M6 20h22M6 25h14M6 30h18"/></svg><span class="cv-source-t"><span class="cv-site">${icon('globe')}<span>${esc(s.site || s.label)}</span></span><span class="cv-title">${esc(s.title || s.label)}</span></span></div>`).join('')}</div>`);
     }
     if (rows.includes('caution')) parts.push(`<div class="cv-caution">${icon('unsure')}<span><b>Check before relying on it</b> · not in anything it read: ${m.caution.map(esc).join(', ')}.</span></div>`);
     if (rows.includes('how')) parts.push(`<div class="cv-actions"><button type="button" class="cv-how" aria-expanded="false">${icon('down')}<span>Show how</span></button></div>`);
@@ -327,7 +328,19 @@
     document.addEventListener('mouseout', (e) => light(e, false));
     document.addEventListener('focusin', (e) => light(e, true));
     document.addEventListener('focusout', (e) => light(e, false));
+    // A source, its preview card or its numbered chip opens the page it came from, in the system's browser.
+    const openSource = (e) => {
+      const t = e.target.closest && e.target.closest('.cv-source[data-url], .cv-card[data-url], .cv-chip');
+      const msg = t && t.closest('.msg');
+      const el = t && (t.dataset.url ? t : msg && msg.querySelector(`.cv-source[data-n="${CSS.escape(t.dataset.n || '')}"][data-url]`));
+      if (!el) return false;
+      e.preventDefault();
+      if (window.HC?.openExternal) window.HC.openExternal(el.dataset.url); else window.open(el.dataset.url, '_blank', 'noopener');   // the system browser, through the same check as a link (platform/index.js)
+      return true;
+    };
+    document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.closest && e.target.closest('.cv-source[data-url], .cv-card[data-url]')) openSource(e); });
     document.addEventListener('click', (e) => {
+      if (openSource(e)) return;
       const b = e.target.closest && e.target.closest('.cv-how');
       if (!b) return;
       const h = b.closest('.msg') && b.closest('.msg').querySelector('.cv-head');

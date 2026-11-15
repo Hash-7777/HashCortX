@@ -211,16 +211,51 @@
   const coded = (t) => (window.HCTextSafety ? window.HCTextSafety.reveal(String(t ?? '')) : String(t ?? ''));
   /** The mark of a check-in from the app: a shield with a tick, drawn on currentColor. */
   const CHECK_MARK = '<svg class="cdr-check-mark" viewBox="0 0 16 16" role="img" aria-label="A check from the app"><path d="M8 1.9 13 3.8v3.6c0 3-2.1 5.4-5 6.6-2.9-1.2-5-3.6-5-6.6V3.8z"/><path d="m5.8 7.9 1.6 1.6 2.9-3.1"/></svg>';
-  function add(contentEl, { verb, object, status, statusClass = '', open = false, flat = false } = {}) {
+  /** A web address a step may open in the browser: http or https only, else ''. */
+  function webAddress(u) {
+    const t = String(u || '').trim();
+    return /^https?:\/\/[^\s"'<>]+$/i.test(t) ? t : '';
+  }
+
+  /**
+   * The pages a step's result points at, as [{ url, title }]: each result of
+   * a search, the page a read came from. Read from the result as the model
+   * was given it; a result that is not that shape gives none.
+   */
+  function sourcesOf(name, result) {
+    if (name !== 'web_search' && name !== 'fetch_url') return [];
+    let data;
+    try { data = JSON.parse(String(result || '')); } catch { return []; }
+    if (!data || typeof data !== 'object' || data.error) return [];
+    const list = name === 'fetch_url' ? [{ url: data.url, title: data.title }]
+      : Array.isArray(data.results) ? data.results : Array.isArray(data.results?.results) ? data.results.results : [];
+    const seen = new Set();
+    return list.map((r) => ({ url: webAddress(r && r.url), title: String((r && r.title) || '').replace(/\s+/g, ' ').trim().slice(0, 120) }))
+      .filter((r) => r.url && !seen.has(r.url) && seen.add(r.url)).slice(0, 12);
+  }
+
+  /** Under a step's result, its sources as links that open in the browser (platform/index.js opens a link's address there). */
+  function sources(el, name, result) {
+    const list = sourcesOf(name, result), body = el && el.querySelector('.cdr-step-body');
+    if (!body || !list.length) return null;
+    const box = document.createElement('div');
+    box.className = 'cdr-step-sources';
+    box.innerHTML = `<span class="cdr-step-sources-t">Sources</span>${list.map((r) => `<a class="cdr-source" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer" title="${esc(r.url)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 3.5h-3v9h9v-3M9 2.5h4.5V7M13.5 2.5 7.5 8.5"/></svg><span>${esc(r.title || r.url.replace(/^https?:\/\/(www\.)?/i, ''))}</span></a>`).join('')}`;
+    body.prepend(box);
+    return box;
+  }
+
+  function add(contentEl, { verb, object, status, statusClass = '', open = false, flat = false, href = '', tool = '' } = {}) {
     if (!contentEl) return null;
     const el = document.createElement('details');
     el.className = 'cdr-step' + (statusClass ? ' ' + statusClass : '');
     if (verb === 'CHECK') el.classList.add('cdr-step--check');   // the app checking in: a row of its own, never a tool step
     el.open = open;
+    if (tool) el.dataset.tool = String(tool);   // which tool, for the sources under its result (sources)
     el.innerHTML = `
         <summary class="cdr-step-head">
           <span class="cdr-step-verb">${verb === 'CHECK' ? CHECK_MARK : esc(verb)}</span>
-          <span class="cdr-step-object" title="${esc(coded(object))}">${esc(coded(object))}</span>
+          ${webAddress(href) ? `<a class="cdr-step-object cdr-step-link" href="${esc(webAddress(href))}" target="_blank" rel="noopener noreferrer" title="Open ${esc(webAddress(href))} in the browser">${esc(coded(object))}</a>` : `<span class="cdr-step-object" title="${esc(coded(object))}">${esc(coded(object))}</span>`}
           <span class="cdr-step-result">${status || ''}</span>
         </summary>
         <div class="cdr-step-body"></div>`;
@@ -276,5 +311,5 @@
     });
   }
 
-  window.HCCodeSteps = { TOOL_VERBS, verbOf, objectOf, stepsLine, stepsHeld, changesTitle, duration, running, timeIn, finish, measure, listFor, add, added, takenAs, notesChanged, settle };
+  window.HCCodeSteps = { TOOL_VERBS, verbOf, objectOf, stepsLine, stepsHeld, changesTitle, duration, running, timeIn, finish, measure, listFor, webAddress, sourcesOf, sources, add, added, takenAs, notesChanged, settle };
 })();

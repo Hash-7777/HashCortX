@@ -94,6 +94,9 @@
 .cv-sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
 .cv-source { display: grid; grid-template-columns: 22px 34px 1fr; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-md); color: inherit; text-decoration: none; transition: border-color .25s, background .25s; }
 .cv-source.hot, .cv-source:focus-visible { border-color: var(--accent-line); background: var(--accent-soft); outline: none; }
+/* A source with its address opens it in the browser, as its card does. */
+.cv-source[data-url], .cv-card[data-url] { cursor: pointer; }
+.cv-source[data-url]:hover, .cv-card[data-url]:hover, .cv-card[data-url]:focus-visible { border-color: var(--accent-line); outline: none; }
 .cv-num { display: grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-xs); border: 1px solid var(--accent-line); font: 10.5px var(--mono); color: var(--accent); }
 .cv-thumb-s { width: 34px; height: 42px; }
 .cv-source-t { display: grid; min-width: 0; }

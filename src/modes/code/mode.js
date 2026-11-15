@@ -881,7 +881,7 @@
         object: toolObject(name, args) || name,
         status: window.HCCodeSteps.running(),   // its time, counting
         statusClass: 'cdr-step--running',
-        open: false,
+        open: false, tool: name, href: name === 'fetch_url' ? args?.url : '',   // the page a read is of, opened in the browser from its step (js/code/steps.js)
       });
       if (el) { el.dataset.id = String(id); if (name === 'save_lesson' && args?.text) el.dataset.lesson = String(args.text); }   // a kept lesson can be forgotten from its step (js/code/steps.js)
       return el;
@@ -896,7 +896,7 @@
         const pre = document.createElement('pre');
         pre.textContent = text.slice(0, 2000) + (text.length > 2000 ? '\n…' : '');
         body.innerHTML = '';
-        body.appendChild(pre);
+        body.appendChild(pre); if (ok) window.HCCodeSteps.sources?.(el, el.dataset.tool, text);   // a search's results and a read's page, as links to open
       }
       // A failure is the one result worth opening without being asked: it is
       // why the run did what it did next.

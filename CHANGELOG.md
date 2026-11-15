@@ -53,6 +53,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A source opens the page it came from.** In chat, a numbered source, its
+  preview card and the numbered chip in the answer now open the page in
+  your browser, with a click or Enter. In HashCoder, a web search's step
+  lists its results as links under its result, and a page read is a link
+  in its own step line.
+
 - **A page that cannot be read says why, and a site that needs you signed
   in says what to do instead.** When a site turns HashCoder away, the model
   is now handed the site's own answer rather than a guess at the cause. For

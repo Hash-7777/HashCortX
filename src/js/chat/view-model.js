@@ -37,6 +37,8 @@
 
   const cut = (t, most) => { const s = String(t || '').replace(/\s+/g, ' ').trim(); return s.length > most ? `${s.slice(0, most - 1).trimEnd()}…` : s; };
   /** A page's site from its address: read by pattern, so it holds where no URL object is (a check's sandbox). */
+  /** A source's address, kept to open it in the browser: http or https only, else ''. */
+  const webUrl = (u) => (/^https?:\/\/[^\s"'<>]+$/i.test(String(u || '').trim()) ? String(u).trim() : '');
   const hostOf = (url) => ((/^[a-z][a-z0-9+.-]*:\/\/(?:www\.)?([^/?#:\s]+)/i.exec(String(url || '')) || [])[1] || '').toLowerCase();
   const reach = (m, station) => { if (!m.stations.includes(station)) m.stations.push(station); m.now = station; };
   const covers = (text, ask) => { const F = window.HCChatFinish; return !!(F && F.covers && F.covers(text, ask)); };
@@ -86,10 +88,10 @@
       const top = list[0] || {};
       const text = list.map((r) => [r.title, r.snippet || r.abstract].filter(Boolean).join('. ')).join('\n');
       if (!text.trim()) return m;
-      source = { kind: 'search', label: `${SEARCHES[name]}${p.query ? ` · ${p.query}` : ''}`, site: hostOf(top.url), title: cut(top.title, 90), excerpt: cut(top.snippet || top.abstract, EXCERPT), text: text.slice(0, MATCH) };
+      source = { kind: 'search', label: `${SEARCHES[name]}${p.query ? ` · ${p.query}` : ''}`, url: webUrl(top.url), site: hostOf(top.url), title: cut(top.title, 90), excerpt: cut(top.snippet || top.abstract, EXCERPT), text: text.slice(0, MATCH) };
     } else if (name === 'fetch_url' && typeof data.text === 'string' && data.text.trim()) {
       const site = hostOf(data.url || p.url);
-      source = { kind: 'page', label: site, site, title: cut(data.text.split(/(?<=[.!?])\s|\s-\s/)[0], 90), excerpt: cut(data.text, EXCERPT), text: data.text.slice(0, MATCH) };
+      source = { kind: 'page', label: site, url: webUrl(data.url || p.url), site, title: cut(data.text.split(/(?<=[.!?])\s|\s-\s/)[0], 90), excerpt: cut(data.text, EXCERPT), text: data.text.slice(0, MATCH) };
     }
     if (source) {
       m.sources.push(source);

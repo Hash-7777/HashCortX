@@ -162,5 +162,16 @@ console.log('\nIts marks and styles:');
   ok('it is linked, and the script loaded after its record', /<link rel="stylesheet" href="\/css\/chat-view\.css"\/>/.test(src('index.html')) && src('boot.js').indexOf('/js/chat/view.js') > src('boot.js').indexOf('/js/chat/view-model.js'));
 }
 
+console.log('\nOpening a source:');
+{
+  const view = src('js', 'chat', 'view.js'), css = readFileSync(join(here, '..', '..', 'src', 'css', 'chat-view.css'), 'utf8');
+  ok('a numbered source with an address carries it, and says it opens in the browser', /data-url="\$\{esc\(s\.url\)\}" role="link" title="Open \$\{esc\(s\.url\)\} in the browser"/.test(view));
+  ok('...and so does its preview card, reachable from the keyboard', /card\.dataset\.url = s\.url; card\.tabIndex = 0; card\.setAttribute\('role', 'link'\);/.test(view));
+  ok('a click on a source, its card or its numbered chip opens the address in the system\'s browser, and Enter on a focused one does', /closest\('\.cv-source\[data-url\], \.cv-card\[data-url\], \.cv-chip'\)/.test(view) && /window\.HC\.openExternal\(el\.dataset\.url\)/.test(view) && /HC\.openExternal = \(href\) => \{\n  const url = HC\.externalLink\(href, location\.href\);/.test(readFileSync(join(here, '..', '..', 'src', 'platform', 'index.js'), 'utf8')) && /e\.key === 'Enter'/.test(view));
+  ok('the click handler tries a source first, by a name of its own that no later line in the handler declares again', /if \(openSource\(e\)\) return;/.test(view) && (view.match(/const openSource\b/g) || []).length === 1);
+  ok('...a chip by the source of its number, in its own reply', /msg\.querySelector\(`\.cv-source\[data-n="\$\{CSS\.escape\(t\.dataset\.n \|\| ''\)\}"\]\[data-url\]`\)/.test(view));
+  ok('it looks like something to press', /\.cv-source\[data-url\], \.cv-card\[data-url\] \{ cursor: pointer; \}/.test(css));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/view.js)`);
 process.exit(fail ? 1 : 0);
