@@ -29,7 +29,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { console, performance, setTimeout, clearTimeout, DOMException };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['fences.js', 'text-safety.js', 'chat/sources.js', 'code/delegate.js', 'run-ledger.js', 'model-limits.js', 'agent-context.js', 'code/host-tools.js', 'code/translate.js', 'code/asks.js', 'code/added.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
+for (const f of ['fences.js', 'text-safety.js', 'chat/sources.js', 'code/delegate.js', 'code/command-changes.js', 'run-ledger.js', 'model-limits.js', 'agent-context.js', 'code/host-tools.js', 'code/translate.js', 'code/asks.js', 'code/added.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
   vm.runInContext(src('js', ...f.split('/')), sandbox, { filename: f });
 }
 const S = sandbox.HCAgentShape;
@@ -86,18 +86,19 @@ function project() {
  * One run. `script(messages, n)` gives the model's n-th turn (from 1); a turn
  * that is an Error is thrown. `finish` is the finishing list the mode builds.
  */
-async function runWith({ runModel = '', script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [], receipt = false, offerThen = false, offerPaths = false, bigRead = null } = {}) {
+async function runWith({ runModel = '', script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [], receipt = false, offerThen = false, offerPaths = false, bigRead = null, root = '/p', openFolder = null } = {}) {
   const P = project();
   if (bigRead) P.files['/p/a.js'] = bigRead;
   sandbox.HC = { code: { TOOL_DEFINITIONS: P.tools.map((t) => ({ name: t.name, fn: t.fn })), request, asks, plan: null, runModel, readWholeQuietly: async () => '', linesQuietly: async () => '' }, undo: { lastFor: () => null }, guard: { noteBlocked: () => {} } };
   const scr = screen(receipt);
+  if (openFolder) scr.ui.openFolder = openFolder;
   const messages = [{ role: 'system', content: 'You are a coding agent.' }, { role: 'user', content: request }];
   const sent = [];
   let n = 0, ctx = null;
   const o = {
     messages, tools: P.tools.map((t) => ({ type: 'function', function: { name: t.name, ...(offerThen && t.name === 'patch_file' ? { parameters: { type: 'object', properties: { path: { type: 'string' }, search: { type: 'string' }, replace: { type: 'string' }, then_run: { type: 'object' } } } } : {}), ...(offerPaths && t.name === 'read_file' ? { parameters: { type: 'object', properties: { path: { type: 'string' }, paths: { type: 'array' } } } } : {}) } })), label: '', signal,
     ui: scr.ui, temperature: 0.2,
-    state: { size, local: size !== 'full', light: false, projectRoot: '/p', projectChecks: null, codeMap: null },
+    state: { size, local: size !== 'full', light: false, projectRoot: root, projectChecks: null, codeMap: null },
     prefs: () => prefs,
     call: async (msgs, tools, temperature, sig, live) => { n++; sent.push({ msgs: msgs.map((m) => ({ ...m })), tools: tools.length, live: !!live }); const t = script(msgs, n, tools); if (t instanceof Error) throw t; return t; },
     compress: (msgs) => msgs,
@@ -129,6 +130,20 @@ console.log('\nA reading command answered by the app:');
   ok('...and the answer says so, with the file in it', /^Answered by the app's own reading \(read_file\), with no program started; call read_file directly next time\.\nconst b = 2;/.test(result && result.content), result && result.content);
   const ls = await runWith({ script: (m, n) => (n === 1 ? turnOf(callOf('shell_run', { command: 'npm', args: ['test'] })) : words('Ran it.')) });
   ok('a command it cannot answer runs as before', json(ls.P.ran) === '[["run","npm","test"]]', json(ls.P.ran));
+}
+
+console.log('\nA folder the request asked for, made with no project open:');
+{
+  const opened = [];
+  const mk = (args) => (m, n) => (n === 1 ? turnOf(callOf('shell_run', { command: 'mkdir', args })) : words('Made it.'));
+  const r = await runWith({ root: null, openFolder: async (p) => { opened.push(p); return true; }, script: mk(['/home/sam/Desktop/new site']) });
+  const result = r.messages.find((m) => m.role === 'tool');
+  ok('it is opened as the project, and the model is told so', json(opened) === '["/home/sam/Desktop/new site"]' && /The app opened \/home\/sam\/Desktop\/new site as the project/.test(result && result.content), result && result.content);
+  const open = [];
+  await runWith({ openFolder: async (p) => { open.push(p); return true; }, script: mk(['/home/sam/Desktop/other']) });
+  ok('...never when a project is already open', open.length === 0);
+  const refused = await runWith({ root: null, openFolder: async () => false, script: mk(['/home/sam/Desktop/x']) });
+  ok('...and a folder the app would not open is not said to be open', !/opened/.test(refused.messages.find((m) => m.role === 'tool')?.content || ''));
 }
 
 console.log('\nA change and its check in one call (then_run):');

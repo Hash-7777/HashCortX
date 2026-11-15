@@ -267,6 +267,8 @@
           const ms = Math.round(performance.now() - t0);
           ui.trace('Tool', call.name + ' · ' + window.HCCodeSteps.duration(ms), ok ? 'ok' : 'err');
           ui.toolDone(toolEl, resultStr, ok, ms);
+          const made = ok && call.name === 'shell_run' && !sharedState.projectRoot ? window.HCCodeCommandChanges?.folderMade?.(call.arguments, resultStr) : '';   // a folder the request asked for, made with no project open,
+          if (made && (await ui.openFolder?.(made))) { resultStr += `\n\n[The app opened ${made} as the project, so reading, searching and changing files inside it no longer asks.]`; ui.trace('Project', `Opened ${made}, the folder this run made`, 'ok'); }   // opened as the project (js/code/command-changes.js folderMade)
           if (!ok && /safety list|protected location/.test(resultStr)) HC.guard?.noteBlocked?.();   // a refused place counts toward Auto asking about everything
 
           // A row is offered only for a change that happened. A refused or

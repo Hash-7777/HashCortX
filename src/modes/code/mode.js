@@ -548,8 +548,8 @@
       return null;
     }
 
-    async function openProject() {
-      const folder = await pickFolder();
+    async function openProject(given) {
+      const folder = typeof given === 'string' ? given : await pickFolder();   // a folder a run made for its request (ui.openFolder), or the one picked
       if (!folder || typeof folder !== 'string') return;
       sharedState.projectRoot = folder;
       HC?.guard?.setProjectRoot?.(folder);
@@ -1747,7 +1747,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
     async function agentLoop(messages, tools, contentEl, label, signal) {
       // Everything the loop shows, in one place: the reply's live line, its steps, tool rows, answer and error, the trace, the status, the terminal and the change rows.
-      const ui = { trace: cdrTraceAdd, status: setStatus, terminal: terminalLog, wait: (o) => appendThinking(contentEl, o), step: (s) => appendStep(contentEl, s), tool: (name, args) => appendToolBlock(contentEl, name, args), toolDone: finalizeToolBlock, answer: (text) => appendTextToBubble(contentEl, text),
+      const ui = { trace: cdrTraceAdd, openFolder: async (p) => ((await HC?.guard?.setProjectRoot?.(p)) ? (await openProject(p), true) : false), status: setStatus, terminal: terminalLog, wait: (o) => appendThinking(contentEl, o), step: (s) => appendStep(contentEl, s), tool: (name, args) => appendToolBlock(contentEl, name, args), toolDone: finalizeToolBlock, answer: (text) => appendTextToBubble(contentEl, text),
         added: (text, pictures, kinds) => { window.HCCodeSteps.added(contentEl, text, pictures, kinds); scrollMessages(); }, receipt: (parts) => window.HCRunView?.receiptIn(contentEl, parts) || null, subAgent: (info) => window.HCRunView?.agentCard(contentEl, info) || null,
         error: (e, kept) => { const errDiv = Object.assign(document.createElement('div'), { className: 'cdr-msg-text', innerHTML: `<b>Error</b><br>${esc(e?.message || String(e))}${kept ? `<br><br>${esc(kept)}` : ''}` }); Object.assign(errDiv.style, { color: 'var(--cdr-error)', borderLeft: '2px solid var(--cdr-error)', paddingLeft: '10px', margin: '8px 0' }); contentEl.appendChild(errDiv); scrollMessages(); },
         // A move is two changes: the file leaves one path and arrives at another. Undoing both puts it back.

@@ -58,5 +58,26 @@
     return `[The command changed these files in the project: ${named}${more}. The app kept no copy of them first, so Undo cannot put them back; check them before going on.${cut}]`;
   }
 
-  window.HCCodeCommandChanges = { NAMED, RECORD_MOST, watches, diff, note };
+  /**
+   * The one folder a command made, when the command was mkdir naming a
+   * single place and it ended well: its whole address, or ''. A relative
+   * place counts only beside a whole working folder. HashCoder opens it as
+   * the project when none is open, so the run's reads, searches and changes
+   * inside the folder it was asked to make stop putting a question each time.
+   */
+  function folderMade(args, result) {
+    const a = args && typeof args === 'object' ? args : {};
+    if (String(a.command || '').split(/[\\/]/).pop() !== 'mkdir') return '';
+    try { if (JSON.parse(String(result || '')).code !== 0) return ''; } catch { return ''; }
+    const places = (Array.isArray(a.args) ? a.args : []).map(String).filter((x) => x && !x.startsWith('-'));
+    if (places.length !== 1) return '';
+    const whole = (p) => /^\//.test(p) || /^[A-Za-z]:[\\/]/.test(p);
+    const cwd = String(a.cwd || '');
+    const p = whole(places[0]) ? places[0] : whole(cwd) ? `${cwd.replace(/[\\/]+$/, '')}/${places[0]}` : '';
+    const parts = p.replace(/\\/g, '/').split('/').filter(Boolean);
+    if (!p || parts.includes('..') || parts.includes('.') || parts.length < 3) return '';   // never a top folder, a home folder itself, or a place spelled round about
+    return p.replace(/[\\/]+$/, '');
+  }
+
+  window.HCCodeCommandChanges = { NAMED, RECORD_MOST, watches, diff, note, folderMade };
 })();

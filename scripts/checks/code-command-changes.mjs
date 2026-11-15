@@ -66,5 +66,17 @@ console.log('\nWired into the loop, the tools and the receipt:');
   ok('it is loaded before the Coder, and part of npm run check', src('boot.js').indexOf("'/js/code/command-changes.js'") > 0 && /npm run check:code-command-changes\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 }
 
+console.log('\nThe folder a command made:');
+{
+  const ran = JSON.stringify({ stdout: '', stderr: '', code: 0 }), bad = JSON.stringify({ code: 1 });
+  ok('mkdir naming one whole place, ended well: that place', C.folderMade({ command: 'mkdir', args: ['/home/sam/Desktop/new site'] }, ran) === '/home/sam/Desktop/new site');
+  ok('...with -p, or a trailing slash, the same', C.folderMade({ command: 'mkdir', args: ['-p', '/home/sam/Desktop/new site/'] }, ran) === '/home/sam/Desktop/new site');
+  ok('...a relative place beside a whole working folder', C.folderMade({ command: 'mkdir', args: ['site'], cwd: '/home/sam/Desktop' }, ran) === '/home/sam/Desktop/site');
+  ok('none for a command that failed, made several, or was not mkdir', C.folderMade({ command: 'mkdir', args: ['/a/b/c'] }, bad) === '' && C.folderMade({ command: 'mkdir', args: ['/a/b/c', '/a/b/d'] }, ran) === '' && C.folderMade({ command: 'touch', args: ['/a/b/c'] }, ran) === '');
+  ok('none for a top folder, a home folder itself, or a place spelled round about', C.folderMade({ command: 'mkdir', args: ['/home/sam'] }, ran) === '' && C.folderMade({ command: 'mkdir', args: ['/home/sam/Desktop/../x'] }, ran) === '' && C.folderMade({ command: 'mkdir', args: ['site'] }, ran) === '');
+  const mode = src('modes', 'code', 'mode.js');
+  ok('HashCoder opens it only once the guard has taken it as the project', /openFolder: async \(p\) => \(\(await HC\?\.guard\?\.setProjectRoot\?\.\(p\)\) \? \(await openProject\(p\), true\) : false\)/.test(mode) && /const folder = typeof given === 'string' \? given : await pickFolder\(\);/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/command-changes.js)`);
 process.exit(fail ? 1 : 0);

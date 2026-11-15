@@ -53,6 +53,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A folder HashCoder makes for your request becomes the project.** With
+  no project open, every search and read in a new folder it had just made
+  waited for you to press Allow, which showed as slow steps. When a run
+  makes one folder for the request and no project is open, it now opens
+  that folder as the project, so working inside it no longer asks.
+
 - **HashCoder keeps a long conversation whole.** The open conversation
   and Sessions were kept in a small store shared with the rest of the app,
   and a run that read and wrote whole files filled it: every later save was
